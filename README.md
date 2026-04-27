@@ -1,18 +1,29 @@
+<div align="center">
+
 # DEGIRO IRPF Analyzer
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Markdown report](https://img.shields.io/badge/Output-Markdown-000000?logo=markdown&logoColor=white)](#11-salidas-generadas)
-[![Excel report](https://img.shields.io/badge/Output-Excel-217346?logo=microsoft-excel&logoColor=white)](#11-salidas-generadas)
-[![GitHub Sponsors](https://img.shields.io/badge/Support-GitHub%20Sponsors-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/flaviogrillo1)
-[![Buy Me a Coffee](https://img.shields.io/badge/Support-Buy%20Me%20a%20Coffee-FFDD00?logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/flaviogrillo)
+### Informes fiscales accionables para Renta WEB a partir de los CSV de DEGIRO
 
-Generador de informes para IRPF español a partir de los CSV de DEGIRO.
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-2457ff?style=for-the-badge&logo=gnu&logoColor=white)](https://www.gnu.org/licenses/gpl-3.0)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Markdown report](https://img.shields.io/badge/Output-Markdown-111111?style=for-the-badge&logo=markdown&logoColor=white)](#11-salidas-generadas)
+[![Excel report](https://img.shields.io/badge/Output-Excel-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)](#11-salidas-generadas)
 
-Si te resulta útil y quieres apoyar su mantenimiento, puedes invitarme a un café aquí:
+[![GitHub Sponsors](https://img.shields.io/badge/Support-GitHub%20Sponsors-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/flaviogrillo1)
+[![Buy Me a Coffee](https://img.shields.io/badge/Donate-Buy%20Me%20a%20Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/flaviogrillo)
 
-- [GitHub Sponsors](https://github.com/sponsors/flaviogrillo1)
-- [Buy Me a Coffee](https://buymeacoffee.com/flaviogrillo)
+</div>
+
+> Convierte `Transactions.csv` y `Account.csv` en un informe que te dice qué meter en Hacienda, qué líneas llevan check de recompra y qué cifras deben cuadrar con Renta WEB.
+
+## Apoya el proyecto
+
+Si este proyecto te ahorra tiempo, errores o revisión manual en tu declaración, puedes apoyar su mantenimiento aquí:
+
+- **[GitHub Sponsors](https://github.com/sponsors/flaviogrillo1)**
+- **[Buy Me a Coffee](https://buymeacoffee.com/flaviogrillo)**
+
+Cada aportación ayuda a mantener el cálculo fiscal, las validaciones de FIFO y la compatibilidad con futuros cambios del extracto de DEGIRO.
 
 El script lee `Transactions.csv` y `Account.csv`, calcula FIFO por ISIN, aplica la regla española de recompra de valores homogéneos, separa líneas fiscales F2 para Renta WEB, detecta pérdidas no computables por la regla de los 2 meses y genera:
 
