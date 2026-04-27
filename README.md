@@ -11,6 +11,7 @@
 
 [![GitHub Sponsors](https://img.shields.io/badge/Support-GitHub%20Sponsors-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/flaviogrillo1)
 [![Buy Me a Coffee](https://img.shields.io/badge/Donate-Buy%20Me%20a%20Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/flaviogrillo)
+[![Stripe](https://img.shields.io/badge/Donate-Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white)](https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00)
 
 </div>
 
@@ -26,8 +27,15 @@ Si este proyecto te ahorra tiempo, errores o revisión manual en tu declaración
   </a>
 </p>
 
+<p align="center">
+  <a href="https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00">
+    <img src="https://img.shields.io/badge/Support%20with%20Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Support with Stripe" />
+  </a>
+</p>
+
 - **[GitHub Sponsors](https://github.com/sponsors/flaviogrillo1)**
 - **[Buy Me a Coffee](https://buymeacoffee.com/flaviogrillo)**
+- **[Stripe](https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00)**
 
 Cada aportación ayuda a mantener el cálculo fiscal, las validaciones de FIFO y la compatibilidad con futuros cambios del extracto de DEGIRO.
 
