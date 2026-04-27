@@ -20,6 +20,12 @@
 
 Si este proyecto te ahorra tiempo, errores o revisión manual en tu declaración, puedes apoyar su mantenimiento aquí:
 
+<p align="center">
+  <a href="https://buymeacoffee.com/flaviogrillo">
+    <img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me a Coffee" style="height: 56px; width: 236px;" />
+  </a>
+</p>
+
 - **[GitHub Sponsors](https://github.com/sponsors/flaviogrillo1)**
 - **[Buy Me a Coffee](https://buymeacoffee.com/flaviogrillo)**
 
