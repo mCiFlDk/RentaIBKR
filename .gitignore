@@ -1,4 +1,6 @@
 __pycache__/
 *.py[cod]
 .cache/
+.venv/
+.pytest_cache/
 *.tmp.xlsx

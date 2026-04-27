@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="926" height="592" viewBox="0 0 926 592" role="img" aria-labelledby="title desc">
+  <title id="title">Renta WEB - Transmisión de acciones negociadas</title>
+  <desc id="desc">Ventana de alta individual con entidad emisora, valor de transmisión, adquisición y casilla de recompra de valores homogéneos.</desc>
+  <rect width="926" height="592" fill="#f1f2f6" />
+  <rect x="13" y="49" width="899" height="510" fill="#eef0f5" stroke="#757575" />
+  <rect x="34" y="9" width="858" height="51" rx="2" fill="#7893c4" stroke="#5c7599" />
+  <text x="52" y="44" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Transmisión de acciones negociadas</text>
+  <text x="736" y="30" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Modalidad</text>
+  <text x="736" y="47" fill="#fff" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Declarante</text>
+
+  <text x="34" y="98" fill="#404040" font-family="Segoe UI, Arial, sans-serif" font-size="16">Entidad Emisora</text>
+  <line x1="160" y1="95" x2="602" y2="95" stroke="#888" stroke-dasharray="1.5 2" />
+  <rect x="611" y="78" width="230" height="21" rx="2" fill="#e7f8d9" stroke="#7fa7d0" />
+
+  <text x="34" y="121" fill="#404040" font-family="Segoe UI, Arial, sans-serif" font-size="16">Ganancia/Pérdida 1 de 1</text>
+  <rect x="199" y="106" width="334" height="47" fill="#ece8df" />
+  <rect x="207" y="114" width="179" height="30" rx="3" fill="#efefef" stroke="#a0a0a0" />
+  <rect x="214" y="122" width="12" height="12" rx="2" fill="#dff1d7" stroke="#8ab26d" />
+  <text x="230" y="136" fill="#303030" font-family="Segoe UI, Arial, sans-serif" font-size="16">Alta Ganancia/Pérdida</text>
+  <text x="393" y="135" fill="#67a8d9" font-family="Segoe UI Symbol, Arial, sans-serif" font-size="18">◀  ◁  ▷  ▶  ✖</text>
+
+  <text x="35" y="187" fill="#3d3d3d" font-family="Segoe UI, Arial, sans-serif" font-size="16">Valor de transmisión (*)</text>
+  <line x1="201" y1="184" x2="605" y2="184" stroke="#888" stroke-dasharray="1.5 2" />
+  <rect x="614" y="163" width="134" height="27" rx="2" fill="#fffef8" stroke="#9d9d9d" />
+
+  <text x="35" y="222" fill="#3d3d3d" font-family="Segoe UI, Arial, sans-serif" font-size="16">Valor de adquisición (*)</text>
+  <line x1="200" y1="219" x2="605" y2="219" stroke="#888" stroke-dasharray="1.5 2" />
+  <rect x="614" y="198" width="134" height="27" rx="2" fill="#fffef8" stroke="#9d9d9d" />
+
+  <text x="34" y="249" fill="#313131" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Exención ganancia patrimonial por reinversión en rentas vitalicias por mayores de 65 años:</text>
+  <text x="61" y="280" fill="#444" font-family="Segoe UI, Arial, sans-serif" font-size="16">Si desea aplicar la exención por reinversión en rentas vitalicias, marque la casilla</text>
+  <line x1="519" y1="277" x2="609" y2="277" stroke="#888" stroke-dasharray="1.5 2" />
+  <rect x="610" y="268" width="12" height="12" rx="2" fill="#f8f8f8" stroke="#9e9e9e" />
+  <text x="61" y="313" fill="#444" font-family="Segoe UI, Arial, sans-serif" font-size="16">Importe reinvertido</text>
+  <line x1="181" y1="310" x2="609" y2="310" stroke="#888" stroke-dasharray="1.5 2" />
+  <rect x="614" y="292" width="133" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+
+  <text x="34" y="350" fill="#313131" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">No imputación de pérdidas por recompra de valores homogéneos</text>
+  <text x="35" y="376" fill="#444" font-family="Segoe UI, Arial, sans-serif" font-size="16">Marque la casilla si ha obtenido una pérdida patrimonial y ha recomprado acciones</text>
+  <text x="35" y="399" fill="#444" font-family="Segoe UI, Arial, sans-serif" font-size="16">homogéneas en los dos meses anteriores o posteriores a la transmisión</text>
+  <line x1="518" y1="387" x2="609" y2="387" stroke="#888" stroke-dasharray="1.5 2" />
+  <rect x="610" y="382" width="12" height="12" rx="2" fill="#f8f8f8" stroke="#9e9e9e" />
+
+  <rect x="38" y="410" width="14" height="14" fill="#f0f0d0" stroke="#6e6e6e" />
+  <text x="67" y="418" fill="#2048e6" font-family="Segoe UI, Arial, sans-serif" font-size="16">Aplicación de los coeficientes reductores de la disposición transitoria 9ª de la ley del IRPF</text>
+  <text x="67" y="440" fill="#2048e6" font-family="Segoe UI, Arial, sans-serif" font-size="16">(sólo para ganancias derivadas de acciones adquiridas antes del 31/12/1994)</text>
+
+  <text x="35" y="468" fill="#444" font-family="Segoe UI, Arial, sans-serif" font-size="15">(*) Si aplica la DT 9ª de la Ley de IRPF no se pueden agrupar acciones transmitidas o adquiridas en distintas fechas</text>
+  <text x="35" y="498" fill="#444" font-family="Segoe UI, Arial, sans-serif" font-size="15">NOTA: Si aplica la DT 9ª de la Ley de IRPF o la exención por reinversión en rentas vitalicias, el programa no permite copiar a uno de</text>
+  <text x="35" y="520" fill="#444" font-family="Segoe UI, Arial, sans-serif" font-size="15">los cónyuges las cantidades reflejadas para el otro.</text>
+</svg>

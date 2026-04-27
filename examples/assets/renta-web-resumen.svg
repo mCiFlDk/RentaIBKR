@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="953" height="672" viewBox="0 0 953 672" role="img" aria-labelledby="title desc">
+  <title id="title">Renta WEB - Acciones transmitidas y titulares</title>
+  <desc id="desc">Pantalla resumida de Renta WEB con casillas 0326 a 0338 para transmisiones de acciones negociadas.</desc>
+  <rect width="953" height="672" fill="#eef1f7" />
+  <text x="6" y="40" fill="#343434" font-family="Segoe UI, Arial, sans-serif" font-size="16">Marque la siguiente casilla si desea usar el programa de Cartera de Valores para el cálculo de las ganancias y</text>
+  <text x="6" y="62" fill="#343434" font-family="Segoe UI, Arial, sans-serif" font-size="16">pérdidas patrimoniales derivadas de transmisiones de acciones negociadas</text>
+  <rect x="735" y="28" width="12" height="12" rx="2" fill="#f8f8f8" stroke="#9e9e9e" />
+
+  <text x="5" y="83" fill="#454545" font-family="Segoe UI, Arial, sans-serif" font-size="16">Entidad Emisora 1 de 5</text>
+  <rect x="156" y="68" width="329" height="48" fill="#ece8df" />
+  <rect x="164" y="76" width="171" height="30" rx="3" fill="#efefef" stroke="#a0a0a0" />
+  <rect x="170" y="84" width="12" height="12" rx="2" fill="#dff1d7" stroke="#8ab26d" />
+  <text x="188" y="98" fill="#303030" font-family="Segoe UI, Arial, sans-serif" font-size="16">Alta Entidad Emisora</text>
+  <text x="346" y="96" fill="#67a8d9" font-family="Segoe UI Symbol, Arial, sans-serif" font-size="18">◀  ◁  ▷  ▶  ✖</text>
+
+  <text x="4" y="160" fill="#2f2f2f" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Acciones transmitidas y titulares:</text>
+
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#3e3e3e">
+    <text x="31" y="191">Contribuyente titular de los valores transmitidos</text>
+    <text x="31" y="224">Denominación de los valores transmitidos (entidad emisora)</text>
+    <text x="31" y="257">Importe global de las transmisiones efectuadas en 20XX</text>
+    <text x="59" y="292">Valor de transmisión destinado a constituir una renta vitalicia</text>
+    <text x="59" y="325">Valor de transmisión al que resulta aplicable la D.T. 9.ª</text>
+    <text x="31" y="362">Valor de adquisición global de los valores transmitidos</text>
+  </g>
+
+  <g>
+    <rect x="737" y="173" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="191" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0326</text>
+    <rect x="785" y="168" width="102" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+
+    <rect x="737" y="206" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="224" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0327</text>
+    <rect x="785" y="201" width="158" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+
+    <rect x="737" y="239" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="257" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0328</text>
+    <rect x="785" y="234" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+    <rect x="924" y="236" width="22" height="22" rx="3" fill="#efefef" stroke="#9a9a9a" />
+    <text x="930" y="252" fill="#333" font-family="Segoe UI Symbol, Arial, sans-serif" font-size="14">✎</text>
+
+    <rect x="737" y="272" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="290" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0329</text>
+    <rect x="785" y="267" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+
+    <rect x="737" y="305" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="323" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0330</text>
+    <rect x="785" y="300" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+
+    <rect x="737" y="338" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="356" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0331</text>
+    <rect x="785" y="333" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+  </g>
+
+  <text x="4" y="421" fill="#2f2f2f" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">Resultados:</text>
+
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#3e3e3e">
+    <text x="31" y="455">Ganancias patrimoniales</text>
+    <text x="31" y="490">Ganancias exentas por reinversión en rentas vitalicias</text>
+    <text x="31" y="525">Parte de las ganancias patrimoniales susceptibles de reducción (D.T. 9.ª)</text>
+    <text x="31" y="560">Reducción aplicable (D.T. 9.ª)</text>
+    <text x="31" y="595">Ganancias patrimoniales reducidas no exentas [ (0332] - [0333] - [0335] )</text>
+    <text x="31" y="628">Pérdidas patrimoniales. Importe obtenido</text>
+    <text x="31" y="661">Pérdidas patrimoniales. Importe computable</text>
+  </g>
+
+  <g>
+    <rect x="737" y="437" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="455" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0332</text>
+    <rect x="785" y="432" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+    <rect x="737" y="472" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="490" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0333</text>
+    <rect x="785" y="467" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+    <rect x="737" y="507" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="525" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0334</text>
+    <rect x="785" y="502" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+    <rect x="737" y="542" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="560" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0335</text>
+    <rect x="785" y="537" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+    <rect x="737" y="577" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="595" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0336</text>
+    <rect x="785" y="572" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+    <rect x="737" y="610" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="628" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0337</text>
+    <rect x="785" y="605" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+    <rect x="737" y="643" width="40" height="25" fill="#8fb0dc" stroke="#4c6488" />
+    <text x="742" y="661" fill="#000" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="700">0338</text>
+    <rect x="785" y="638" width="132" height="22" fill="#f8f7df" stroke="#c7c7b2" />
+  </g>
+</svg>

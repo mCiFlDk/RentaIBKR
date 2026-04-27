@@ -214,6 +214,7 @@ class Analysis:
     apply_two_month_rule: bool
     corporate_action_alerts: list[str]
     history_end_date: date | None
+    history_end_date_declared: bool
 
 
 @dataclass
@@ -245,6 +246,7 @@ class SavingsCompensation:
 class ForeignIncomeSummary:
     gross_income_eur: Decimal
     foreign_tax_paid_eur: Decimal
+    unmatched_foreign_tax_paid_eur: Decimal
     spanish_tax_rate_hint: Decimal | None
     estimated_spanish_quota_limit_eur: Decimal | None
     estimated_deductible_foreign_tax_eur: Decimal | None
@@ -305,7 +307,13 @@ class EcbRateProvider:
 
 def read_rows(path: Path) -> list[list[str]]:
     with path.open("r", encoding="utf-8-sig", newline="") as fh:
-        return list(csv.reader(fh))
+        sample = fh.read(4096)
+        fh.seek(0)
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=",;")
+        except csv.Error:
+            dialect = csv.excel
+        return list(csv.reader(fh, dialect))
 
 
 def derive_fee_eur(gross_eur: Decimal, total_eur: Decimal, side: str) -> Decimal:
@@ -438,6 +446,11 @@ def parse_transactions(path: Path, ecb: EcbRateProvider, fx_mode: str = "degiro"
         )
 
     trades.sort(key=lambda t: t.trade_dt)
+    if not trades:
+        raise ValueError(
+            f"No se ha podido leer ninguna operacion de {path}. "
+            f"Revisa que sea el CSV de transacciones de DEGIRO y que el delimitador/cabeceras sean correctos."
+        )
     return trades, ecb_rates_used, degiro_rates_used
 
 
@@ -629,6 +642,7 @@ def apply_preexisting_replacements(
                 quantity_open=matched_qty,
                 unit_cost_eur=lot.unit_cost_eur + loss_per_share,
                 deferred_loss_unit_eur=lot.deferred_loss_unit_eur + loss_per_share,
+                deferred_source_year=disposal.sell_dt.year,
             )
             remaining_lot = replace(
                 lot,
@@ -639,6 +653,7 @@ def apply_preexisting_replacements(
         else:
             lot.unit_cost_eur += loss_per_share
             lot.deferred_loss_unit_eur += loss_per_share
+            lot.deferred_source_year = disposal.sell_dt.year
             lot_index += 1
 
         disposal.blocked_loss_eur += matched_qty * loss_per_share
@@ -873,7 +888,7 @@ def analyze_interest(cash_movements: list[CashMovement], year: int) -> list[Cash
     return [
         movement
         for movement in cash_movements
-        if movement.booking_dt.year == year and "interest" in movement.description.lower() and movement.amount_eur != 0
+        if movement.booking_dt.year == year and "interest" in movement.description.lower() and movement.amount_eur > 0
     ]
 
 
@@ -911,6 +926,10 @@ def analyze_broker_fees(cash_movements: list[CashMovement], year: int, loaded_or
 
         if any(token in desc for token in ("custody", "administr", "mantenimiento", "platform fee", "service fee")):
             deductible_admin_fees.append(movement)
+            continue
+
+        if "interest" in desc and movement.amount_eur < 0:
+            non_deductible_broker_fees.append(movement)
             continue
 
         if "fee" in desc or "comision" in desc or "comisión" in desc:
@@ -1041,18 +1060,78 @@ def summarize_foreign_income(
             return not movement.isin.upper().startswith("ES")
         return movement.currency.upper() != "EUR"
 
-    gross_income = Decimal("0")
-    for movement in dividends + interests:
-        if is_foreign_income(movement):
-            gross_income += movement.amount_eur
+    def is_foreign_withholding(movement: CashMovement) -> bool:
+        if movement.isin:
+            return not movement.isin.upper().startswith("ES")
+        return True
 
-    foreign_tax = sum((abs(movement.amount_eur) for movement in withholdings), Decimal("0"))
+    def choose_best_income_match(
+        withholding: CashMovement,
+        candidates: list[tuple[int, CashMovement]],
+    ) -> tuple[int, CashMovement] | None:
+        if not candidates:
+            return None
+
+        if withholding.order_id:
+            exact_order_matches = [candidate for candidate in candidates if candidate[1].order_id and candidate[1].order_id == withholding.order_id]
+            if exact_order_matches:
+                return min(
+                    exact_order_matches,
+                    key=lambda item: (
+                        abs((item[1].value_date - withholding.value_date).days),
+                        abs((item[1].booking_dt - withholding.booking_dt).total_seconds()),
+                    ),
+                )
+
+        scored_candidates: list[tuple[tuple[int, int, int, float], tuple[int, CashMovement]]] = []
+        for candidate in candidates:
+            movement = candidate[1]
+            same_isin = bool(withholding.isin and movement.isin and withholding.isin == movement.isin)
+            same_product = bool(withholding.product and movement.product and withholding.product == movement.product)
+            value_date_distance = abs((movement.value_date - withholding.value_date).days)
+            booking_distance_seconds = abs((movement.booking_dt - withholding.booking_dt).total_seconds())
+
+            if not same_isin and not same_product:
+                continue
+            if value_date_distance > 10:
+                continue
+
+            score = (
+                0 if same_isin else 1,
+                0 if same_product else 1,
+                value_date_distance,
+                booking_distance_seconds,
+            )
+            scored_candidates.append((score, candidate))
+
+        if not scored_candidates:
+            return None
+
+        scored_candidates.sort(key=lambda item: item[0])
+        return scored_candidates[0][1]
+
+    foreign_income_candidates = [movement for movement in dividends + interests if is_foreign_income(movement)]
+    matched_income_indexes: set[int] = set()
+    matched_foreign_tax = Decimal("0")
+    unmatched_foreign_tax = Decimal("0")
+
+    indexed_candidates = list(enumerate(foreign_income_candidates))
+    for withholding in (movement for movement in withholdings if is_foreign_withholding(movement)):
+        match = choose_best_income_match(withholding, indexed_candidates)
+        if match is None:
+            unmatched_foreign_tax += abs(withholding.amount_eur)
+            continue
+        matched_income_indexes.add(match[0])
+        matched_foreign_tax += abs(withholding.amount_eur)
+
+    gross_income = sum((foreign_income_candidates[index].amount_eur for index in matched_income_indexes), Decimal("0"))
+
     if spanish_tax_rate_hint is None:
-        return ForeignIncomeSummary(gross_income, foreign_tax, None, None, None)
+        return ForeignIncomeSummary(gross_income, matched_foreign_tax, unmatched_foreign_tax, None, None, None)
 
     limit = gross_income * spanish_tax_rate_hint
-    estimated_deductible = min(foreign_tax, limit)
-    return ForeignIncomeSummary(gross_income, foreign_tax, spanish_tax_rate_hint, limit, estimated_deductible)
+    estimated_deductible = min(matched_foreign_tax, limit)
+    return ForeignIncomeSummary(gross_income, matched_foreign_tax, unmatched_foreign_tax, spanish_tax_rate_hint, limit, estimated_deductible)
 
 
 def load_carryover_input(
@@ -1314,6 +1393,7 @@ def render_report(
     blocked_cases = [line for line in f2_lines if line.check_two_month_rule]
     fifo_incomplete_cases = [disposal for disposal in year_disposals if not disposal.fifo_complete]
     max_trade_date = max((trade.trade_dt.date() for trade in analysis.trades), default=None)
+    history_end_date_missing = not analysis.history_end_date_declared
 
     def add_table(lines: list[str], headers: list[str], rows: list[list[str]]) -> None:
         lines.append("| " + " | ".join(headers) + " |")
@@ -1379,7 +1459,7 @@ def render_report(
             ["Pérdida diferida pendiente a 31/12/2025", f"{q(deferred_pending_year_end_total)} EUR", "Si es 0, no queda pérdida bloqueada al cierre"],
             ["Pérdida diferida pendiente al final del histórico cargado", f"{q(deferred_pending_total)} EUR", "Si es 0, no queda pérdida pendiente según el histórico"],
             ["Dividendos brutos", f"{q(dividends_total)} EUR", "Capital mobiliario, si aplica"],
-            ["Retención extranjera", f"{q(withholdings_total)} EUR", "Doble imposición, si aplica"],
+            ["Retención extranjera asociada", f"{q(foreign_income.foreign_tax_paid_eur)} EUR", "Doble imposición, si aplica"],
             ["Intereses", f"{q(interest_total)} EUR", "Capital mobiliario, si aplica"],
         ],
     )
@@ -1393,7 +1473,7 @@ def render_report(
         critical_pre_filing.append("FIFO incompleto")
     if analysis.fx_mode_requested == "favorable":
         critical_pre_filing.append("fx-mode favorable")
-    if analysis.history_end_date is None and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
+    if history_end_date_missing and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         critical_pre_filing.append("history-end-date ausente")
     if deferred_pending_total > 0:
         critical_pre_filing.append("pérdida diferida pendiente final")
@@ -1540,10 +1620,12 @@ def render_report(
             ["Saldo capital mobiliario antes de compensaciones", f"{q(savings.capital_income_net_before_offset)} EUR"],
             ["Compensación aplicada entre bloques del ejercicio", f"{q(current_year_cross_comp)} EUR"],
             ["Arrastres de años anteriores usados", f"{q(prior_year_carry_used)} EUR"],
-            ["Saldo final F2 estimado", f"{q(savings.capital_gains_final)} EUR"],
+            ["Saldo final F2 estimado por el script", f"{q(savings.capital_gains_final)} EUR"],
             ["Saldo final capital mobiliario estimado", f"{q(savings.capital_income_final)} EUR"],
         ],
     )
+    lines.append("")
+    lines.append("Usar como control, no como sustituto del cálculo automático de Renta WEB.")
     lines.append("")
     compensation_conclusion: list[str] = []
     compensation_conclusion.append(f"- Pérdida patrimonial compensable: {'SÍ' if savings.capital_gains_final < 0 else 'NO'}.")
@@ -1557,16 +1639,23 @@ def render_report(
     if dividends_total == 0 and interest_total == 0 and withholdings_total == 0:
         lines.append("No se detectan dividendos, intereses ni retenciones extranjeras relevantes.")
     else:
-        add_table(
-            lines,
-            ["Concepto", "Importe EUR", "Dónde va"],
-            [
-                ["Dividendos brutos", f"{q(dividends_total)} EUR", "Capital mobiliario"],
-                ["Intereses", f"{q(interest_total)} EUR", "Capital mobiliario"],
-                ["Retención extranjera", f"{q(withholdings_total)} EUR", "Deducción doble imposición internacional"],
-                ["Renta extranjera asociada", f"{q(foreign_income.gross_income_eur)} EUR", "Deducción doble imposición internacional"],
-            ],
-        )
+        income_rows = [
+            ["Dividendos brutos", f"{q(dividends_total)} EUR", "Capital mobiliario"],
+            ["Intereses", f"{q(interest_total)} EUR", "Capital mobiliario"],
+            ["Retención extranjera asociada", f"{q(foreign_income.foreign_tax_paid_eur)} EUR", "Deducción doble imposición internacional; estimación heurística"],
+            ["Renta extranjera asociada", f"{q(foreign_income.gross_income_eur)} EUR", "Deducción doble imposición internacional; estimación heurística"],
+        ]
+        if foreign_income.unmatched_foreign_tax_paid_eur > 0:
+            income_rows.append(
+                [
+                    "Retención extranjera no emparejada",
+                    f"{q(foreign_income.unmatched_foreign_tax_paid_eur)} EUR",
+                    "REVISAR manualmente antes de trasladar a Renta WEB",
+                ]
+            )
+        add_table(lines, ["Concepto", "Importe EUR", "Dónde va"], income_rows)
+    lines.append("")
+    lines.append("La doble imposición se detecta de forma heurística por descripción del movimiento. Revisa manualmente dividendos y retenciones antes de trasladarlos a Renta WEB.")
     lines.append("")
     lines.append("## 7. Insights fiscales importantes")
     lines.append("")
@@ -1581,7 +1670,7 @@ def render_report(
         insights.append("- El control de casillas F2 debe hacerse con las líneas fiscales F2, no con cada Disposal bruto: una venta parcialmente bloqueada puede dividirse en un tramo no computable con check y otro tramo computable sin check.")
     if fifo_incomplete_cases:
         insights.append("- Hay ventas con FIFO incompleto; en esas líneas se bloquea la aplicación automática de la regla de recompra hasta completar histórico anterior.")
-    if analysis.history_end_date is None:
+    if history_end_date_missing:
         insights.append("- Falta history-end-date; cualquier pérdida de noviembre o diciembre con ventana futura no completamente cubierta queda con fiabilidad limitada para recompras posteriores.")
     if analysis.fx_mode_requested == "favorable":
         insights.append("- El informe se ha construido con fx-mode favorable solicitado por el usuario; ese criterio no es apropiado como criterio fiscal a presentar en Hacienda.")
@@ -1609,7 +1698,7 @@ def render_report(
             "No es un criterio fiscal estable para presentar en Hacienda.",
             "Regenerar con fx-mode fijo degiro o ecb.",
         ])
-    if analysis.history_end_date is None and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
+    if history_end_date_missing and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         alerts.append([
             "CRÍTICO",
             "Falta --history-end-date con ventas con pérdida cerca de final de año",
@@ -1652,7 +1741,7 @@ def render_report(
             "Pueden alterar coste, número de títulos o tratamiento fiscal.",
             "Revisar manualmente los eventos listados por el broker.",
         ])
-    if analysis.history_end_date is None and not any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
+    if history_end_date_missing and not any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         alerts.append([
             "INFORMATIVO",
             "No se ha indicado history-end-date",
@@ -1684,7 +1773,9 @@ def render_report(
     lines.append("Capital mobiliario:")
     lines.append(f"- Dividendos/intereses brutos: {q(dividends_total + interest_total)} EUR")
     lines.append(f"- Gastos deducibles: {q(deductible_fees_total)} EUR")
-    lines.append(f"- Retención extranjera: {q(withholdings_total)} EUR")
+    lines.append(f"- Retención extranjera asociada: {q(foreign_income.foreign_tax_paid_eur)} EUR")
+    if foreign_income.unmatched_foreign_tax_paid_eur > 0:
+        lines.append(f"- Retención extranjera no emparejada: {q(foreign_income.unmatched_foreign_tax_paid_eur)} EUR")
     lines.append("")
     lines.append("Conclusión:")
     if critical_pre_filing:
@@ -1852,6 +1943,7 @@ def render_excel_report(
     blocked_cases = [line for line in f2_lines if line.check_two_month_rule]
     fifo_incomplete_cases = [disposal for disposal in year_disposals if not disposal.fifo_complete]
     max_trade_date = max((trade.trade_dt.date() for trade in analysis.trades), default=None)
+    history_end_date_missing = not analysis.history_end_date_declared
 
     def pending_by_isin(lots_by_isin: dict[str, list[Lot]]) -> dict[str, Decimal]:
         result: dict[str, Decimal] = {}
@@ -1894,7 +1986,7 @@ def render_excel_report(
         critical_pre_filing.append("FIFO incompleto")
     if analysis.fx_mode_requested == "favorable":
         critical_pre_filing.append("fx-mode favorable")
-    if analysis.history_end_date is None and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
+    if history_end_date_missing and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         critical_pre_filing.append("history-end-date ausente")
     if deferred_pending_total > 0:
         critical_pre_filing.append("pérdida diferida pendiente final")
@@ -1909,7 +2001,7 @@ def render_excel_report(
         ["Pérdida diferida pendiente a 31/12/2025", deferred_pending_year_end_total, "Si es 0, no queda pérdida bloqueada al cierre"],
         ["Pérdida diferida pendiente al final del histórico cargado", deferred_pending_total, "Si es 0, no queda pérdida pendiente según el histórico"],
         ["Dividendos brutos", dividends_total, "Capital mobiliario, si aplica"],
-        ["Retención extranjera", withholdings_total, "Doble imposición, si aplica"],
+        ["Retención extranjera asociada", foreign_income.foreign_tax_paid_eur, "Doble imposición, si aplica"],
         ["Intereses", interest_total, "Capital mobiliario, si aplica"],
         [],
         ["Conclusión", "", ""],
@@ -2035,8 +2127,10 @@ def render_excel_report(
             + savings.carry_income_losses_used_cross
             + savings.carry_gains_losses_used_cross,
         ],
-        ["Saldo final F2 estimado", savings.capital_gains_final],
+        ["Saldo final F2 estimado por el script", savings.capital_gains_final],
         ["Saldo final capital mobiliario estimado", savings.capital_income_final],
+        [],
+        ["Nota", "Usar como control, no como sustituto del cálculo automático de Renta WEB."],
         [],
         ["Conclusión", ""],
         ["Pérdida patrimonial compensable", "SÍ" if savings.capital_gains_final < 0 else "NO"],
@@ -2051,9 +2145,12 @@ def render_excel_report(
         income_rows.extend([
             ["Dividendos brutos", dividends_total, "Capital mobiliario"],
             ["Intereses", interest_total, "Capital mobiliario"],
-            ["Retención extranjera", withholdings_total, "Deducción doble imposición internacional"],
-            ["Renta extranjera asociada", foreign_income.gross_income_eur, "Deducción doble imposición internacional"],
+            ["Retención extranjera asociada", foreign_income.foreign_tax_paid_eur, "Deducción doble imposición internacional; estimación heurística"],
+            ["Renta extranjera asociada", foreign_income.gross_income_eur, "Deducción doble imposición internacional; estimación heurística"],
         ])
+        if foreign_income.unmatched_foreign_tax_paid_eur > 0:
+            income_rows.append(["Retención extranjera no emparejada", foreign_income.unmatched_foreign_tax_paid_eur, "REVISAR manualmente antes de trasladar a Renta WEB."])
+        income_rows.append(["Nota", "", "Revisar manualmente dividendos y retenciones antes de trasladarlos a Renta WEB."])
 
     insights_rows: list[list[str]] = [["Insight"]]
     insights: list[str] = []
@@ -2067,7 +2164,7 @@ def render_excel_report(
         insights.append("El control de casillas F2 debe hacerse con las líneas fiscales F2, no con cada Disposal bruto: una venta parcialmente bloqueada puede dividirse en un tramo no computable con check y otro tramo computable sin check.")
     if fifo_incomplete_cases:
         insights.append("Hay ventas con FIFO incompleto; en esas líneas se bloquea la aplicación automática de la regla de recompra hasta completar histórico anterior.")
-    if analysis.history_end_date is None:
+    if history_end_date_missing:
         insights.append("Falta history-end-date; cualquier pérdida de noviembre o diciembre con ventana futura no completamente cubierta queda con fiabilidad limitada para recompras posteriores.")
     if analysis.fx_mode_requested == "favorable":
         insights.append("El informe se ha construido con fx-mode favorable solicitado por el usuario; ese criterio no es apropiado como criterio fiscal a presentar en Hacienda.")
@@ -2083,7 +2180,7 @@ def render_excel_report(
         alerts_rows.append(["CRÍTICO", f"FIFO incompleto en {len(fifo_incomplete_cases)} venta(s)", "El coste real y la regla de recompra de esas líneas no son fiables.", "Completar histórico anterior y regenerar el informe."])
     if analysis.fx_mode_requested == "favorable":
         alerts_rows.append(["CRÍTICO", "El informe se ha solicitado con fx-mode favorable", "No es un criterio fiscal estable para presentar en Hacienda.", "Regenerar con fx-mode fijo degiro o ecb."])
-    if analysis.history_end_date is None and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
+    if history_end_date_missing and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         alerts_rows.append(["CRÍTICO", "Falta --history-end-date con ventas con pérdida cerca de final de año", "La ventana futura de recompra puede no estar completamente cubierta.", "Exportar histórico hasta al menos febrero del año siguiente o informar history-end-date real."])
     if analysis.history_end_date is not None and max_trade_date is not None and analysis.history_end_date < max_trade_date:
         alerts_rows.append(["CRÍTICO", f"history-end-date {analysis.history_end_date.isoformat()} anterior a la última operación {max_trade_date.isoformat()}", "La cobertura temporal declarada es inconsistente con el CSV cargado.", "Corregir history-end-date y regenerar."])
@@ -2095,7 +2192,7 @@ def render_excel_report(
         alerts_rows.append(["REVISAR", "Operaciones BUY/SELL con mismo timestamp", "El orden real de ejecución puede alterar FIFO y regla de recompra.", "Contrastar el orden exacto en el extracto del broker."])
     if analysis.corporate_action_alerts:
         alerts_rows.append(["REVISAR", "Eventos corporativos detectados", "Pueden alterar coste, número de títulos o tratamiento fiscal.", "Revisar manualmente los eventos listados por el broker."])
-    if analysis.history_end_date is None and not any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
+    if history_end_date_missing and not any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         alerts_rows.append(["INFORMATIVO", "No se ha indicado history-end-date", "La cobertura temporal se infiere de la última operación del CSV.", "Indicar history-end-date real para cerrar la validación de recompras futuras."])
     for warning in f2_line_warnings:
         alerts_rows.append(["CRÍTICO", warning, "Las líneas fiscales F2 no cuadran con los Disposal originales.", "Revisar el split de líneas F2 antes de trasladar datos a Renta WEB."])
@@ -2113,7 +2210,7 @@ def render_excel_report(
         ["Capital mobiliario", ""],
         ["Dividendos/intereses brutos", q(dividends_total + interest_total) + " EUR"],
         ["Gastos deducibles", q(deductible_fees_total) + " EUR"],
-        ["Retención extranjera", q(withholdings_total) + " EUR"],
+        ["Retención extranjera asociada", q(foreign_income.foreign_tax_paid_eur) + " EUR"],
         [],
         ["Conclusión", "; ".join(critical_pre_filing) if critical_pre_filing else "Sin bloqueos finales pendientes ni alertas críticas de presentación."],
         [],
@@ -2184,6 +2281,7 @@ def build_analysis(
             apply_two_month_rule=apply_two_month_rule,
             corporate_action_alerts=analyze_corporate_actions(cash_movements, year),
             history_end_date=history_end_date or max((trade.trade_dt.date() for trade in trades), default=None),
+            history_end_date_declared=history_end_date is not None,
         )
 
     if fx_mode == "favorable":
