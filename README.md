@@ -19,6 +19,10 @@ RentaDegiro convierte `Transactions.csv` y `Account.csv` de DEGIRO en un informe
 
 La regla práctica del proyecto es sencilla: si consigues generar el informe, revisar las alertas y trasladar los datos con menos esfuerzo o menos riesgo de error, el flujo termina apoyando el mantenimiento con una donación.
 
+## Apoya el proyecto
+
+RentaDegiro existe para ahorrar horas de revisión manual en una parte especialmente incómoda de la declaración. Si te ha ayudado a generar tu informe, detectar un error o preparar Renta WEB con más confianza, la forma correcta de cerrar el proceso es apoyar su mantenimiento:
+
 <p align="center">
   <a href="https://github.com/sponsors/flaviogrillo1">
     <img src="https://img.shields.io/badge/GitHub%20Sponsors-Sponsor-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" />
@@ -29,6 +33,14 @@ La regla práctica del proyecto es sencilla: si consigues generar el informe, re
   <a href="https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00">
     <img src="https://img.shields.io/badge/Donate-Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Donate with Stripe" />
   </a>
+</p>
+
+<p align="center">
+  <strong>
+    <a href="https://github.com/sponsors/flaviogrillo1">GitHub Sponsors</a> ·
+    <a href="https://buymeacoffee.com/flaviogrillo">Buy Me a Coffee</a> ·
+    <a href="https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00">Stripe</a>
+  </strong>
 </p>
 
 ## Para quién es
@@ -115,36 +127,6 @@ La demo visual está centrada en ventas de acciones para Renta WEB. El script ta
 ![Pantalla alta transmisión Renta WEB](examples/assets/renta-web-transmision.svg)
 
 Ver explicación completa en [Cómo trasladar los datos a Renta WEB](docs/renta-web.md).
-
-## Apoya el proyecto
-
-RentaDegiro existe para ahorrar horas de revisión manual en una parte especialmente incómoda de la declaración. Si te ha ayudado a generar tu informe, detectar un error o preparar Renta WEB con más confianza, la forma correcta de cerrar el proceso es apoyar su mantenimiento:
-
-<p align="center">
-  <a href="https://github.com/sponsors/flaviogrillo1">
-    <img src="https://img.shields.io/badge/GitHub%20Sponsors-Sponsor-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" />
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://buymeacoffee.com/flaviogrillo">
-    <img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me a Coffee" style="height: 60px; width: 260px;" />
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00">
-    <img src="https://img.shields.io/badge/Donate-Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Donate with Stripe" />
-  </a>
-</p>
-
-<p align="center">
-  <strong>
-    <a href="https://github.com/sponsors/flaviogrillo1">GitHub Sponsors</a> ·
-    <a href="https://buymeacoffee.com/flaviogrillo">Buy Me a Coffee</a> ·
-    <a href="https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00">Stripe</a>
-  </strong>
-</p>
 
 ## Documentación
 
