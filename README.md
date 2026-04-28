@@ -11,10 +11,6 @@ FIFO · Regla de recompra · Líneas F2 · Control 0339/0340 · Markdown + Excel
 [![Markdown report](https://img.shields.io/badge/Output-Markdown-111111?style=for-the-badge&logo=markdown&logoColor=white)](docs/usage.md#salidas)
 [![Excel report](https://img.shields.io/badge/Output-Excel-217346?style=for-the-badge&logo=microsoft-excel&logoColor=white)](docs/usage.md#salidas)
 
-[![GitHub Sponsors](https://img.shields.io/badge/Support-GitHub%20Sponsors-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/flaviogrillo1)
-[![Buy Me a Coffee](https://img.shields.io/badge/Donate-Buy%20Me%20a%20Coffee-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000)](https://buymeacoffee.com/flaviogrillo)
-[![Stripe](https://img.shields.io/badge/Donate-Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white)](https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00)
-
 </div>
 
 > Proyecto no oficial. No está afiliado, aprobado ni respaldado por DEGIRO, flatexDEGIRO Bank AG, la Agencia Tributaria ni ninguna administración pública.
@@ -22,6 +18,18 @@ FIFO · Regla de recompra · Líneas F2 · Control 0339/0340 · Markdown + Excel
 RentaDegiro convierte `Transactions.csv` y `Account.csv` de DEGIRO en un informe pensado para declarar ventas de acciones en Renta WEB. Te dice qué líneas introducir, qué importes copiar, cuándo marcar el check de recompra de valores homogéneos y qué cifras deberían cuadrar en las casillas 0339/0340.
 
 La regla práctica del proyecto es sencilla: si consigues generar el informe, revisar las alertas y trasladar los datos con menos esfuerzo o menos riesgo de error, el flujo termina apoyando el mantenimiento con una donación.
+
+<p align="center">
+  <a href="https://github.com/sponsors/flaviogrillo1">
+    <img src="https://img.shields.io/badge/GitHub%20Sponsors-Support%20this%20project-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" />
+  </a>
+  <a href="https://buymeacoffee.com/flaviogrillo">
+    <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Buy Me a Coffee" />
+  </a>
+  <a href="https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00">
+    <img src="https://img.shields.io/badge/Stripe-Donate-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Stripe" />
+  </a>
+</p>
 
 ## Para quién es
 
@@ -113,20 +121,30 @@ Ver explicación completa en [Cómo trasladar los datos a Renta WEB](docs/renta-
 RentaDegiro existe para ahorrar horas de revisión manual en una parte especialmente incómoda de la declaración. Si te ha ayudado a generar tu informe, detectar un error o preparar Renta WEB con más confianza, la forma correcta de cerrar el proceso es apoyar su mantenimiento:
 
 <p align="center">
+  <a href="https://github.com/sponsors/flaviogrillo1">
+    <img src="https://img.shields.io/badge/GitHub%20Sponsors-Support%20this%20project-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" />
+  </a>
+</p>
+
+<p align="center">
   <a href="https://buymeacoffee.com/flaviogrillo">
-    <img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me a Coffee" style="height: 56px; width: 236px;" />
+    <img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me a Coffee" style="height: 60px; width: 260px;" />
   </a>
 </p>
 
 <p align="center">
   <a href="https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00">
-    <img src="https://img.shields.io/badge/Support%20with%20Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Support with Stripe" />
+    <img src="https://img.shields.io/badge/Stripe-Donate-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Stripe Donate" />
   </a>
 </p>
 
-- [GitHub Sponsors](https://github.com/sponsors/flaviogrillo1)
-- [Buy Me a Coffee](https://buymeacoffee.com/flaviogrillo)
-- [Stripe](https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00)
+<p align="center">
+  <strong>
+    <a href="https://github.com/sponsors/flaviogrillo1">GitHub Sponsors</a> ·
+    <a href="https://buymeacoffee.com/flaviogrillo">Buy Me a Coffee</a> ·
+    <a href="https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00">Stripe</a>
+  </strong>
+</p>
 
 ## Documentación
 
