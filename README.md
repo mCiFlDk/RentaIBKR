@@ -21,13 +21,13 @@ La regla práctica del proyecto es sencilla: si consigues generar el informe, re
 
 <p align="center">
   <a href="https://github.com/sponsors/flaviogrillo1">
-    <img src="https://img.shields.io/badge/GitHub%20Sponsors-Support%20this%20project-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" />
+    <img src="https://img.shields.io/badge/GitHub%20Sponsors-Sponsor-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" />
   </a>
   <a href="https://buymeacoffee.com/flaviogrillo">
-    <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=000000" alt="Buy Me a Coffee" />
+    <img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me a Coffee" style="height: 60px; width: 260px;" />
   </a>
   <a href="https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00">
-    <img src="https://img.shields.io/badge/Stripe-Donate-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Stripe" />
+    <img src="https://img.shields.io/badge/Donate-Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Donate with Stripe" />
   </a>
 </p>
 
@@ -122,7 +122,7 @@ RentaDegiro existe para ahorrar horas de revisión manual en una parte especialm
 
 <p align="center">
   <a href="https://github.com/sponsors/flaviogrillo1">
-    <img src="https://img.shields.io/badge/GitHub%20Sponsors-Support%20this%20project-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" />
+    <img src="https://img.shields.io/badge/GitHub%20Sponsors-Sponsor-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" />
   </a>
 </p>
 
@@ -134,7 +134,7 @@ RentaDegiro existe para ahorrar horas de revisión manual en una parte especialm
 
 <p align="center">
   <a href="https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00">
-    <img src="https://img.shields.io/badge/Stripe-Donate-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Stripe Donate" />
+    <img src="https://img.shields.io/badge/Donate-Stripe-635BFF?style=for-the-badge&logo=stripe&logoColor=white" alt="Donate with Stripe" />
   </a>
 </p>
 
