@@ -13,25 +13,32 @@ En la práctica:
 - el coste de adquisición sale de los lotes consumidos;
 - las comisiones de compra y venta se incorporan al cálculo cuando están disponibles.
 
+## Informes IBKR de varios años
+
+El FIFO solo es fiable si el script recibe todo el histórico necesario. Puedes pasar varios informes anuales con `--ibkr-report`.
+
+Ejemplo:
+
+```bash
+python main.py --ibkr-report IBKR_2025.csv IBKR_2026.csv IBKR_2027.csv --year 2027 --output informe_2027.md --history-end-date 2027-12-31
+```
+
 ## Valores homogéneos
 
-El script usa el ISIN como clave principal. Aun así, hay casos que requieren revisión manual:
+El script usa el ISIN informado por IBKR como clave principal. Si IBKR no informa ISIN, usa el símbolo como fallback y genera un resultado que debe revisarse.
 
+Requieren revisión manual:
+
+- mismo ISIN en otro broker;
 - titularidades distintas;
 - ADR frente a acción ordinaria;
 - clases distintas de acciones;
 - cambios de ISIN;
 - fusiones, spin-offs u otros eventos corporativos.
 
-Si has comprado el mismo ISIN en otro broker, el resultado de este proyecto no basta por sí solo: FIFO debe calcularse con todas tus operaciones.
-
 ## Regla de los 2 meses
 
-Para acciones admitidas a negociación, el modelo aplica por defecto una ventana de:
-
-```text
-2 meses antes o después de la venta
-```
+Para acciones admitidas a negociación, el modelo aplica por defecto una ventana de dos meses antes o después de la venta.
 
 Cuando hay pérdida y recompra dentro de esa ventana, la pérdida puede quedar no computable en ese momento. El informe marca esas líneas para que sepas cuándo revisar el check de Renta WEB.
 
@@ -46,18 +53,24 @@ Por eso puedes ver un check 2M en una venta y, aun así, una pérdida pendiente 
 
 ## Ventas parcialmente bloqueadas
 
-Una misma venta puede tener una parte bloqueada y otra parte computable. En ese caso el informe separa líneas para que puedas introducir en Renta WEB:
+Una misma venta puede tener una parte bloqueada y otra parte computable. En ese caso el informe separa líneas:
 
 - una línea con check `SÍ` para la parte no computable;
 - una línea con check `NO` para la parte computable.
 
-Esta separación es una de las partes más útiles del Excel: evita tratar toda la pérdida como bloqueada cuando solo lo está una fracción.
+## Tipo de cambio
 
-## Doble imposición internacional
+IBKR informa operaciones en la divisa del activo. Para calcular valores fiscales en EUR, el script usa tipos históricos BCE/ECB para importes no EUR.
 
-La doble imposición se detecta de forma heurística a partir de la descripción de los movimientos y del vínculo aproximado entre dividendos, retenciones e ISIN no españoles.
+La primera ejecución con divisas no EUR descarga y cachea:
 
-Úsalo como estimación y revisa manualmente dividendos y retenciones antes de trasladarlos a Renta WEB.
+```text
+.cache/ecb_hist.xml
+```
+
+## Dividendos y doble imposición
+
+La doble imposición se detecta de forma heurística a partir de la descripción de dividendos y retenciones de IBKR. Usa esa sección como apoyo de revisión, no como cifra final automática.
 
 ## Compensaciones de la base del ahorro
 
@@ -69,26 +82,8 @@ El script estima compensaciones entre:
 
 Es una estimación orientativa. Debe usarse como control, no como sustituto del cálculo automático de Renta WEB.
 
-## Tipo de cambio
-
-`degiro` suele ser el modo más práctico para declarar porque usa los importes en EUR liquidados por el broker cuando existen.
-
-`ecb` sirve como criterio externo y uniforme para comprobación.
-
-`favorable` es una comparación técnica y no un criterio fiscal estable para presentar.
-
 ## Fuentes oficiales
-
-La base normativa principal es la Ley 35/2006 del IRPF, artículos 33.5 y 37.2.
 
 - [Ley 35/2006 del IRPF - BOE](https://www.boe.es/buscar/act.php?id=BOE-A-2006-20764)
 - [AEAT - valores homogéneos](https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-ayuda-presentacion/cartera-valores/2-valores-homogeneos.html)
 - [AEAT - Renta WEB F2](https://sede.agenciatributaria.gob.es/Sede/Ayuda/24Presentacion/100/7_6_6_2/ganancias_perdidas_patrimoniales_derivadas_acciones.html)
-
-## Cierre recomendado
-
-Cuando estas reglas te permitan entender el informe y trasladar los datos con menos incertidumbre, el proyecto ha hecho su trabajo. Apoyarlo con una donación ayuda a mantener reglas, ejemplos y documentación actualizados:
-
-- [GitHub Sponsors](https://github.com/sponsors/flaviogrillo1)
-- [Buy Me a Coffee](https://buymeacoffee.com/flaviogrillo)
-- [Stripe](https://donate.stripe.com/6oUeVebYc4Tc8sMgVqbbG00)
