@@ -352,8 +352,8 @@ def extract_symbol_isin(description: str) -> tuple[str, str]:
     return match.group(1).strip(), match.group(2).strip()
 
 
-def generated_order_id(report_path: Path, symbol: str, trade_dt: datetime, quantity: Decimal, gross_local: Decimal) -> str:
-    return f"{report_path.name}:{symbol}:{trade_dt:%Y%m%d%H%M%S}:{quantity}:{gross_local}"
+def generated_order_id(report_path: Path, symbol: str, side: str, currency: str, trade_dt: datetime) -> str:
+    return f"{report_path.name}:{symbol}:{side}:{currency}:{trade_dt:%Y%m%d%H%M%S}"
 
 
 def derive_fee_eur(gross_eur: Decimal, total_eur: Decimal, side: str) -> Decimal:
@@ -457,7 +457,7 @@ def parse_ibkr_trade_row(path: Path, row: list[str], instruments: dict[str, Inst
 
     return (
         Trade(
-            order_id=generated_order_id(path, symbol, trade_dt, quantity_signed, gross_local_signed),
+            order_id=generated_order_id(path, symbol, side, currency, trade_dt),
             isin=isin,
             product=product,
             trade_dt=trade_dt,
@@ -1517,9 +1517,9 @@ def render_report(
             ["Resultado F2 integrable antes de compensaciones", f"{q(recognized_total)} EUR", "Meter en Renta WEB"],
             ["Valor total de transmisión", f"{q(transmission_total)} EUR", "Informar en F2"],
             ["Valor total de adquisición", f"{q(acquisition_total)} EUR", "Informar en F2"],
-            ["Pérdidas no computables por regla 2 meses generadas en 2025", f"{q(deferred_applied_total)} EUR", "Marcar check solo en las líneas afectadas"],
-            ["Pérdidas diferidas de ventas anteriores integradas en 2025", f"{q(embedded_deferred_total)} EUR", "Verificar si proceden del mismo ejercicio o de ejercicios anteriores"],
-            ["Pérdida diferida pendiente a 31/12/2025", f"{q(deferred_pending_year_end_total)} EUR", "Si es 0, no queda pérdida bloqueada al cierre"],
+            [f"Pérdidas no computables por regla 2 meses generadas en {year}", f"{q(deferred_applied_total)} EUR", "Marcar check solo en las líneas afectadas"],
+            [f"Pérdidas diferidas de ventas anteriores integradas en {year}", f"{q(embedded_deferred_total)} EUR", "Verificar si proceden del mismo ejercicio o de ejercicios anteriores"],
+            [f"Pérdida diferida pendiente a 31/12/{year}", f"{q(deferred_pending_year_end_total)} EUR", "Si es 0, no queda pérdida bloqueada al cierre"],
             ["Pérdida diferida pendiente al final del histórico cargado", f"{q(deferred_pending_total)} EUR", "Si es 0, no queda pérdida pendiente según el histórico"],
             ["Dividendos brutos", f"{q(dividends_total)} EUR", "Capital mobiliario, si aplica"],
             ["Retención extranjera asociada", f"{q(foreign_income.foreign_tax_paid_eur)} EUR", "Doble imposición, si aplica"],
@@ -1774,7 +1774,7 @@ def render_report(
     if any(amount > 0 for amount in prior_year_integrated_by_isin.values()):
         alerts.append([
             "REVISAR",
-            "Hay pérdidas diferidas procedentes de ejercicios anteriores integradas en 2025",
+            f"Hay pérdidas diferidas procedentes de ejercicios anteriores integradas en {year}",
             "Renta WEB puede requerir imputación separada de ejercicios anteriores.",
             "Verificar las líneas afectadas en la sección de validación de pérdidas diferidas.",
         ])
@@ -2057,9 +2057,9 @@ def render_excel_report(
         ["Resultado F2 integrable antes de compensaciones", recognized_total, "Meter en Renta WEB"],
         ["Valor total de transmisión", transmission_total, "Informar en F2"],
         ["Valor total de adquisición", acquisition_total, "Informar en F2"],
-        ["Pérdidas no computables por regla 2 meses generadas en 2025", deferred_applied_total, "Marcar check solo en las líneas afectadas"],
-        ["Pérdidas diferidas de ventas anteriores integradas en 2025", embedded_deferred_total, "Verificar si proceden del mismo ejercicio o de ejercicios anteriores"],
-        ["Pérdida diferida pendiente a 31/12/2025", deferred_pending_year_end_total, "Si es 0, no queda pérdida bloqueada al cierre"],
+        [f"Pérdidas no computables por regla 2 meses generadas en {year}", deferred_applied_total, "Marcar check solo en las líneas afectadas"],
+        [f"Pérdidas diferidas de ventas anteriores integradas en {year}", embedded_deferred_total, "Verificar si proceden del mismo ejercicio o de ejercicios anteriores"],
+        [f"Pérdida diferida pendiente a 31/12/{year}", deferred_pending_year_end_total, "Si es 0, no queda pérdida bloqueada al cierre"],
         ["Pérdida diferida pendiente al final del histórico cargado", deferred_pending_total, "Si es 0, no queda pérdida pendiente según el histórico"],
         ["Dividendos brutos", dividends_total, "Capital mobiliario, si aplica"],
         ["Retención extranjera asociada", foreign_income.foreign_tax_paid_eur, "Doble imposición, si aplica"],
@@ -2244,7 +2244,7 @@ def render_excel_report(
     if deferred_pending_total > 0:
         alerts_rows.append(["CRÍTICO", "Queda pérdida diferida pendiente al final del histórico cargado", "No toda la pérdida bloqueada se ha liberado todavía.", "No integrar esa parte pendiente como pérdida compensable hasta su liberación."])
     if any(amount > 0 for amount in prior_year_integrated_by_isin.values()):
-        alerts_rows.append(["REVISAR", "Hay pérdidas diferidas procedentes de ejercicios anteriores integradas en 2025", "Renta WEB puede requerir imputación separada de ejercicios anteriores.", "Verificar las líneas afectadas en la sección de validación de pérdidas diferidas."])
+        alerts_rows.append(["REVISAR", f"Hay pérdidas diferidas procedentes de ejercicios anteriores integradas en {year}", "Renta WEB puede requerir imputación separada de ejercicios anteriores.", "Verificar las líneas afectadas en la sección de validación de pérdidas diferidas."])
     if any("mismo timestamp" in warning for warning in analysis.warnings):
         alerts_rows.append(["REVISAR", "Operaciones BUY/SELL con mismo timestamp", "El orden real de ejecución puede alterar FIFO y regla de recompra.", "Contrastar el orden exacto en el extracto del broker."])
     if analysis.corporate_action_alerts:
