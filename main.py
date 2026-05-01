@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 import sys
 import zipfile
 from collections import defaultdict
@@ -43,7 +44,16 @@ def d(value: str | int | float | Decimal | None) -> Decimal:
         else:
             text = text.replace(",", "")
     elif "," in text:
-        text = text.replace(".", "").replace(",", ".")
+        parts = text.split(",")
+        looks_like_thousands = (
+            len(parts) > 1
+            and 1 <= len(parts[0]) <= 3
+            and all(len(part) == 3 and part.isdigit() for part in parts[1:])
+        )
+        if looks_like_thousands:
+            text = "".join(parts)
+        else:
+            text = text.replace(".", "").replace(",", ".")
 
     return Decimal(text)
 
@@ -54,14 +64,6 @@ def q(value: Decimal) -> str:
 
 def approx_equal(a: Decimal, b: Decimal, tolerance: Decimal = CENT) -> bool:
     return abs(a - b) <= tolerance
-
-
-def parse_date(value: str) -> date:
-    return datetime.strptime(value.strip(), "%d-%m-%Y").date()
-
-
-def parse_datetime(day: str, hhmm: str) -> datetime:
-    return datetime.strptime(f"{day.strip()} {hhmm.strip()}", "%d-%m-%Y %H:%M")
 
 
 def add_months(original: date, months: int) -> date:
@@ -89,6 +91,16 @@ class Trade:
     total_eur: Decimal
     side: str
     eur_source: str
+
+
+@dataclass
+class Instrument:
+    symbol: str
+    isin: str
+    description: str
+    asset_category: str
+    listing_market: str
+    instrument_type: str
 
 
 @dataclass
@@ -202,13 +214,15 @@ class DeferredLoss:
 class Analysis:
     trades: list[Trade]
     cash_movements: list[CashMovement]
+    instruments: dict[str, Instrument]
+    report_paths: list[Path]
     disposals: list[Disposal]
     open_lots: dict[str, list[Lot]]
     open_lots_at_year_end: dict[str, list[Lot]]
     open_lots_at_history_end: dict[str, list[Lot]]
     warnings: list[str]
     ecb_rates_used: int
-    degiro_rates_used: int
+    ibkr_rates_used: int
     fx_mode: str
     fx_mode_requested: str
     apply_two_month_rule: bool
@@ -309,11 +323,37 @@ def read_rows(path: Path) -> list[list[str]]:
     with path.open("r", encoding="utf-8-sig", newline="") as fh:
         sample = fh.read(4096)
         fh.seek(0)
+        first_line = next((line for line in sample.splitlines() if line.strip()), "")
+        if first_line.count(";") > first_line.count(","):
+            return list(csv.reader(fh, delimiter=";"))
         try:
             dialect = csv.Sniffer().sniff(sample, delimiters=",;")
         except csv.Error:
             dialect = csv.excel
         return list(csv.reader(fh, dialect))
+
+
+def parse_ibkr_datetime(value: str) -> datetime:
+    return datetime.strptime(value.strip(), "%Y-%m-%d, %H:%M:%S")
+
+
+def parse_iso_date(value: str) -> date:
+    return date.fromisoformat(value.strip())
+
+
+def is_total_currency(value: str) -> bool:
+    return value.strip().lower() in {"total", "total en eur", "total in eur"}
+
+
+def extract_symbol_isin(description: str) -> tuple[str, str]:
+    match = re.match(r"\s*([A-Z0-9.\- ]+)\(([A-Z]{2}[A-Z0-9]{9,12})\)", description)
+    if not match:
+        return "", ""
+    return match.group(1).strip(), match.group(2).strip()
+
+
+def generated_order_id(report_path: Path, symbol: str, trade_dt: datetime, quantity: Decimal, gross_local: Decimal) -> str:
+    return f"{report_path.name}:{symbol}:{trade_dt:%Y%m%d%H%M%S}:{quantity}:{gross_local}"
 
 
 def derive_fee_eur(gross_eur: Decimal, total_eur: Decimal, side: str) -> Decimal:
@@ -354,104 +394,170 @@ def get_replacement_window_months(isin: str) -> int:
     return REPLACEMENT_WINDOW_MONTHS_BY_ISIN.get(isin, DEFAULT_REPLACEMENT_WINDOW_MONTHS)
 
 
-def compute_eur_amount(
-    local_amount: Decimal,
-    currency: str,
-    degiro_eur: Decimal,
-    trade_day: date,
-    ecb: EcbRateProvider,
-    side: str,
-    fx_mode: str,
-) -> tuple[Decimal, str]:
+def eur_amount_from_report_currency(amount: Decimal, currency: str, when: date, ecb: EcbRateProvider) -> tuple[Decimal, str]:
     if currency.upper() == "EUR":
-        return abs(local_amount if degiro_eur == 0 else degiro_eur), "EUR"
-
-    degiro_candidate = abs(degiro_eur) if degiro_eur != 0 else None
-
-    if fx_mode == "degiro" and degiro_candidate is not None:
-        return degiro_candidate, "DEGIRO"
-
-    rate = ecb.get_rate(currency, trade_day)
-    ecb_candidate = abs(local_amount) / rate
-
-    if fx_mode == "ecb":
-        return ecb_candidate, "ECB"
-
-    if degiro_candidate is None:
-        return ecb_candidate, "ECB"
-
-    raise ValueError(f"Unsupported fx_mode for transaction pricing: {fx_mode}")
+        return amount, "EUR"
+    return amount / ecb.get_rate(currency, when), "ECB"
 
 
-def parse_transactions(path: Path, ecb: EcbRateProvider, fx_mode: str = "degiro") -> tuple[list[Trade], int, int]:
-    rows = read_rows(path)
-    trades: list[Trade] = []
-    ecb_rates_used = 0
-    degiro_rates_used = 0
-
-    for row in rows[1:]:
-        if len(row) == 17:
-            row = [*row[:16], "", row[16]]
-        if len(row) < 18:
-            continue
-        if not row[0].strip() or not row[1].strip():
-            continue
-
-        quantity = d(row[6])
-        if quantity == 0:
-            continue
-        side = "BUY" if quantity > 0 else "SELL"
-
-        trade_dt = parse_datetime(row[0], row[1])
-        currency = row[8].strip() or "EUR"
-        gross_local = abs(d(row[9]))
-        gross_eur_raw = abs(d(row[11]))
-        total_eur_raw = abs(d(row[15]))
-
-        gross_eur, gross_source = compute_eur_amount(gross_local, currency, gross_eur_raw, trade_dt.date(), ecb, side, fx_mode)
-        explicit_fee_eur = abs(d(row[14]))
-        if fx_mode == "degiro" and total_eur_raw != 0:
-            total_eur = total_eur_raw
-            fee_eur = derive_fee_eur(gross_eur, total_eur, side)
-        else:
-            fee_eur = explicit_fee_eur
-            if currency.upper() == "EUR" and fee_eur == 0 and total_eur_raw != 0:
-                fee_eur = derive_fee_eur(gross_eur, total_eur_raw, side)
-            if side == "BUY":
-                total_eur = gross_eur + fee_eur
-            else:
-                total_eur = max(gross_eur - fee_eur, Decimal("0"))
-
-        if gross_source == "ECB":
-            ecb_rates_used += 1
-        elif gross_source == "DEGIRO":
-            degiro_rates_used += 1
-
-        trades.append(
-            Trade(
-                order_id=row[17].strip(),
-                isin=row[3].strip(),
-                product=row[2].strip(),
-                trade_dt=trade_dt,
-                quantity=abs(quantity),
-                price=d(row[7]),
-                currency=currency,
-                gross_local=gross_local,
-                gross_eur=gross_eur,
-                fee_eur=fee_eur,
-                total_eur=total_eur,
-                side=side,
-                eur_source=gross_source,
+def parse_ibkr_instruments(report_paths: list[Path]) -> dict[str, Instrument]:
+    instruments: dict[str, Instrument] = {}
+    for path in report_paths:
+        for row in read_rows(path):
+            if len(row) < 11:
+                continue
+            if row[0] != "Información de instrumento financiero" or row[1] != "Data":
+                continue
+            if row[2].strip() != "Acciones":
+                continue
+            symbol = row[3].strip()
+            if not symbol:
+                continue
+            instruments[symbol] = Instrument(
+                symbol=symbol,
+                description=row[4].strip() or symbol,
+                isin=row[6].strip() or symbol,
+                asset_category=row[2].strip(),
+                listing_market=row[8].strip(),
+                instrument_type=row[10].strip(),
             )
-        )
+    return instruments
+
+
+def parse_ibkr_trade_row(path: Path, row: list[str], instruments: dict[str, Instrument], ecb: EcbRateProvider) -> tuple[Trade, int] | None:
+    if len(row) < 16:
+        return None
+    if row[0] != "Operaciones" or row[1] != "Data" or row[2] != "Order":
+        return None
+    if row[3].strip() != "Acciones":
+        return None
+
+    symbol = row[5].strip()
+    trade_dt = parse_ibkr_datetime(row[6])
+    quantity_signed = d(row[7])
+    if quantity_signed == 0:
+        return None
+
+    currency = row[4].strip() or "EUR"
+    gross_local_signed = d(row[10])
+    fee_local = abs(d(row[11]))
+    gross_local = abs(gross_local_signed)
+    gross_eur, gross_source = eur_amount_from_report_currency(gross_local, currency, trade_dt.date(), ecb)
+    fee_eur, fee_source = eur_amount_from_report_currency(fee_local, currency, trade_dt.date(), ecb)
+    ecb_rates_used = int(gross_source == "ECB") + int(fee_source == "ECB" and fee_local != 0)
+    side = "BUY" if quantity_signed > 0 else "SELL"
+    if side == "BUY":
+        total_eur = gross_eur + fee_eur
+    else:
+        total_eur = max(gross_eur - fee_eur, Decimal("0"))
+
+    instrument = instruments.get(symbol)
+    isin = instrument.isin if instrument else symbol
+    product = instrument.description if instrument else symbol
+
+    return (
+        Trade(
+            order_id=generated_order_id(path, symbol, trade_dt, quantity_signed, gross_local_signed),
+            isin=isin,
+            product=product,
+            trade_dt=trade_dt,
+            quantity=abs(quantity_signed),
+            price=d(row[8]),
+            currency=currency,
+            gross_local=gross_local,
+            gross_eur=abs(gross_eur),
+            fee_eur=abs(fee_eur),
+            total_eur=total_eur,
+            side=side,
+            eur_source=gross_source,
+        ),
+        ecb_rates_used,
+    )
+
+
+def parse_ibkr_cash_movement_row(path: Path, row: list[str], instruments: dict[str, Instrument], ecb: EcbRateProvider) -> tuple[CashMovement, int] | None:
+    if len(row) < 2 or row[1] != "Data":
+        return None
+
+    section = row[0]
+    if section == "Dividendos":
+        if len(row) < 6 or is_total_currency(row[2]):
+            return None
+        currency = row[2].strip() or "EUR"
+        value_date = parse_iso_date(row[3])
+        description = row[4].strip()
+        amount = d(row[5])
+    elif section == "Retención de impuestos":
+        if len(row) < 6 or is_total_currency(row[2]):
+            return None
+        currency = row[2].strip() or "EUR"
+        value_date = parse_iso_date(row[3])
+        description = row[4].strip()
+        amount = d(row[5])
+    elif section == "Tarifas":
+        if len(row) < 7 or is_total_currency(row[2]) or is_total_currency(row[3]) or not row[4].strip():
+            return None
+        currency = row[3].strip() or "EUR"
+        value_date = parse_iso_date(row[4])
+        description = row[5].strip()
+        amount = d(row[6])
+    else:
+        return None
+
+    amount_eur, source = eur_amount_from_report_currency(amount, currency, value_date, ecb)
+    symbol, isin = extract_symbol_isin(description)
+    instrument = instruments.get(symbol)
+    product = instrument.description if instrument else symbol
+    if not isin and instrument:
+        isin = instrument.isin
+
+    return (
+        CashMovement(
+            booking_dt=start_of_day(value_date),
+            value_date=value_date,
+            product=product,
+            isin=isin,
+            description=description,
+            currency=currency,
+            amount=amount,
+            amount_eur=amount_eur,
+            order_id=f"{path.name}:{section}:{value_date.isoformat()}:{symbol}:{amount}",
+        ),
+        int(source == "ECB"),
+    )
+
+
+def parse_ibkr_reports(report_paths: list[Path], ecb: EcbRateProvider) -> tuple[list[Trade], list[CashMovement], dict[str, Instrument], int, int]:
+    instruments = parse_ibkr_instruments(report_paths)
+    trades: list[Trade] = []
+    cash_movements: list[CashMovement] = []
+    ecb_rates_used = 0
+    ibkr_rates_used = 0
+
+    for path in report_paths:
+        for row in read_rows(path):
+            parsed_trade = parse_ibkr_trade_row(path, row, instruments, ecb)
+            if parsed_trade is not None:
+                trade, trade_ecb_rates_used = parsed_trade
+                trades.append(trade)
+                ecb_rates_used += trade_ecb_rates_used
+                continue
+
+            parsed_movement = parse_ibkr_cash_movement_row(path, row, instruments, ecb)
+            if parsed_movement is not None:
+                movement, movement_ecb_rates_used = parsed_movement
+                cash_movements.append(movement)
+                ecb_rates_used += movement_ecb_rates_used
 
     trades.sort(key=lambda t: t.trade_dt)
+    cash_movements.sort(key=lambda m: m.booking_dt)
     if not trades:
+        reports = ", ".join(str(path) for path in report_paths)
         raise ValueError(
-            f"No se ha podido leer ninguna operacion de {path}. "
-            f"Revisa que sea el CSV de transacciones de DEGIRO y que el delimitador/cabeceras sean correctos."
+            f"No se ha podido leer ninguna operacion de acciones en {reports}. "
+            f"Revisa que sean CSV de informes anuales de Interactive Brokers y que incluyan la seccion Operaciones."
         )
-    return trades, ecb_rates_used, degiro_rates_used
+    return trades, cash_movements, instruments, ecb_rates_used, ibkr_rates_used
 
 
 def warn_same_timestamp_mixed_sides(trades: list[Trade]) -> list[str]:
@@ -468,48 +574,6 @@ def warn_same_timestamp_mixed_sides(trades: list[Trade]) -> list[str]:
             )
 
     return warnings
-
-
-def compute_cash_movement_eur_amount(
-    amount: Decimal,
-    currency: str,
-    value_date: date,
-    ecb: EcbRateProvider,
-) -> Decimal:
-    if currency.upper() == "EUR":
-        return amount
-    rate = ecb.get_rate(currency, value_date)
-    return amount / rate
-
-
-def parse_account(path: Path, ecb: EcbRateProvider) -> list[CashMovement]:
-    rows = read_rows(path)
-    movements: list[CashMovement] = []
-
-    for row in rows[1:]:
-        if len(row) < 12:
-            continue
-        if not row[0].strip() or not row[1].strip() or not row[2].strip():
-            continue
-
-        currency = row[7].strip() or "EUR"
-        amount = d(row[8])
-        movements.append(
-            CashMovement(
-                booking_dt=parse_datetime(row[0], row[1]),
-                value_date=parse_date(row[2]),
-                product=row[3].strip(),
-                isin=row[4].strip(),
-                description=row[5].strip(),
-                currency=currency,
-                amount=amount,
-                amount_eur=compute_cash_movement_eur_amount(amount, currency, parse_date(row[2]), ecb),
-                order_id=row[11].strip(),
-            )
-        )
-
-    movements.sort(key=lambda m: m.booking_dt)
-    return movements
 
 
 def aggregate_trades(trades: list[Trade]) -> list[Trade]:
@@ -1353,8 +1417,7 @@ def group_f2_lines(f2_lines: list[F2Line]) -> list[tuple[str, str, str, list[F2L
 def render_report(
     analysis: Analysis,
     year: int,
-    transactions_path: Path,
-    account_path: Path,
+    report_paths: list[Path],
     carryovers: CarryoverInput,
     spanish_savings_tax_rate_hint: Decimal | None,
 ) -> str:
@@ -1443,7 +1506,7 @@ def render_report(
                 product_by_isin[isin] = lots[0].product
 
     lines: list[str] = []
-    lines.append(f"# Informe IRPF {year} - DEGIRO")
+    lines.append(f"# Informe IRPF {year} - Interactive Brokers")
     lines.append("")
     lines.append("## 1. Resumen ejecutivo")
     lines.append("")
@@ -1471,8 +1534,6 @@ def render_report(
     critical_pre_filing = []
     if fifo_incomplete_cases:
         critical_pre_filing.append("FIFO incompleto")
-    if analysis.fx_mode_requested == "favorable":
-        critical_pre_filing.append("fx-mode favorable")
     if history_end_date_missing and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         critical_pre_filing.append("history-end-date ausente")
     if deferred_pending_total > 0:
@@ -1672,8 +1733,6 @@ def render_report(
         insights.append("- Hay ventas con FIFO incompleto; en esas líneas se bloquea la aplicación automática de la regla de recompra hasta completar histórico anterior.")
     if history_end_date_missing:
         insights.append("- Falta history-end-date; cualquier pérdida de noviembre o diciembre con ventana futura no completamente cubierta queda con fiabilidad limitada para recompras posteriores.")
-    if analysis.fx_mode_requested == "favorable":
-        insights.append("- El informe se ha construido con fx-mode favorable solicitado por el usuario; ese criterio no es apropiado como criterio fiscal a presentar en Hacienda.")
     if not blocked_cases:
         insights.append("- No hay líneas F2 con pérdida no computable por recompra; todas las ventas del ejercicio son integrables según el histórico cargado.")
     for insight in insights[:6]:
@@ -1690,13 +1749,6 @@ def render_report(
             f"FIFO incompleto en {len(fifo_incomplete_cases)} venta(s)",
             "El coste real y la regla de recompra de esas líneas no son fiables.",
             "Completar histórico anterior y regenerar el informe.",
-        ])
-    if analysis.fx_mode_requested == "favorable":
-        alerts.append([
-            "CRÍTICO",
-            "El informe se ha solicitado con fx-mode favorable",
-            "No es un criterio fiscal estable para presentar en Hacienda.",
-            "Regenerar con fx-mode fijo degiro o ecb.",
         ])
     if history_end_date_missing and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         alerts.append([
@@ -1740,6 +1792,18 @@ def render_report(
             "Eventos corporativos detectados",
             "Pueden alterar coste, número de títulos o tratamiento fiscal.",
             "Revisar manualmente los eventos listados por el broker.",
+        ])
+    non_common = [
+        warning
+        for warning in analysis.warnings
+        if warning.startswith("Instrumento no accion comun detectado")
+    ]
+    if non_common:
+        alerts.append([
+            "REVISAR",
+            f"Instrumentos no accion común detectados ({len(non_common)})",
+            "IBKR los agrupa como acciones, pero ETFs/ETCs/otros productos pueden tener tratamiento fiscal distinto.",
+            "Revisar manualmente esos instrumentos antes de trasladarlos a Renta WEB.",
         ])
     if history_end_date_missing and not any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         alerts.append([
@@ -1901,8 +1965,7 @@ def render_excel_report(
     workbook_path: Path,
     analysis: Analysis,
     year: int,
-    transactions_path: Path,
-    account_path: Path,
+    report_paths: list[Path],
     carryovers: CarryoverInput,
     spanish_savings_tax_rate_hint: Decimal | None,
 ) -> None:
@@ -1984,8 +2047,6 @@ def render_excel_report(
     critical_pre_filing: list[str] = []
     if fifo_incomplete_cases:
         critical_pre_filing.append("FIFO incompleto")
-    if analysis.fx_mode_requested == "favorable":
-        critical_pre_filing.append("fx-mode favorable")
     if history_end_date_missing and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         critical_pre_filing.append("history-end-date ausente")
     if deferred_pending_total > 0:
@@ -2166,8 +2227,6 @@ def render_excel_report(
         insights.append("Hay ventas con FIFO incompleto; en esas líneas se bloquea la aplicación automática de la regla de recompra hasta completar histórico anterior.")
     if history_end_date_missing:
         insights.append("Falta history-end-date; cualquier pérdida de noviembre o diciembre con ventana futura no completamente cubierta queda con fiabilidad limitada para recompras posteriores.")
-    if analysis.fx_mode_requested == "favorable":
-        insights.append("El informe se ha construido con fx-mode favorable solicitado por el usuario; ese criterio no es apropiado como criterio fiscal a presentar en Hacienda.")
     if not blocked_cases:
         insights.append("No hay líneas F2 con pérdida no computable por recompra; todas las ventas del ejercicio son integrables según el histórico cargado.")
     if not insights:
@@ -2178,8 +2237,6 @@ def render_excel_report(
     alerts_rows: list[list[str]] = [["Nivel", "Alerta", "Impacto", "Acción"]]
     if fifo_incomplete_cases:
         alerts_rows.append(["CRÍTICO", f"FIFO incompleto en {len(fifo_incomplete_cases)} venta(s)", "El coste real y la regla de recompra de esas líneas no son fiables.", "Completar histórico anterior y regenerar el informe."])
-    if analysis.fx_mode_requested == "favorable":
-        alerts_rows.append(["CRÍTICO", "El informe se ha solicitado con fx-mode favorable", "No es un criterio fiscal estable para presentar en Hacienda.", "Regenerar con fx-mode fijo degiro o ecb."])
     if history_end_date_missing and any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         alerts_rows.append(["CRÍTICO", "Falta --history-end-date con ventas con pérdida cerca de final de año", "La ventana futura de recompra puede no estar completamente cubierta.", "Exportar histórico hasta al menos febrero del año siguiente o informar history-end-date real."])
     if analysis.history_end_date is not None and max_trade_date is not None and analysis.history_end_date < max_trade_date:
@@ -2192,6 +2249,8 @@ def render_excel_report(
         alerts_rows.append(["REVISAR", "Operaciones BUY/SELL con mismo timestamp", "El orden real de ejecución puede alterar FIFO y regla de recompra.", "Contrastar el orden exacto en el extracto del broker."])
     if analysis.corporate_action_alerts:
         alerts_rows.append(["REVISAR", "Eventos corporativos detectados", "Pueden alterar coste, número de títulos o tratamiento fiscal.", "Revisar manualmente los eventos listados por el broker."])
+    if any(warning.startswith("Instrumento no accion comun detectado") for warning in analysis.warnings):
+        alerts_rows.append(["REVISAR", "Instrumentos no accion común detectados", "IBKR los agrupa como acciones, pero ETFs/ETCs/otros productos pueden tener tratamiento fiscal distinto.", "Revisar manualmente esos instrumentos antes de trasladarlos a Renta WEB."])
     if history_end_date_missing and not any(disposal.f2_real_gain_loss_eur < 0 and disposal.sell_dt.month >= 11 for disposal in year_disposals):
         alerts_rows.append(["INFORMATIVO", "No se ha indicado history-end-date", "La cobertura temporal se infiere de la última operación del CSV.", "Indicar history-end-date real para cerrar la validación de recompras futuras."])
     for warning in f2_line_warnings:
@@ -2215,10 +2274,8 @@ def render_excel_report(
         ["Conclusión", "; ".join(critical_pre_filing) if critical_pre_filing else "Sin bloqueos finales pendientes ni alertas críticas de presentación."],
         [],
         ["Entradas", ""],
-        ["Transactions", str(transactions_path)],
-        ["Account", str(account_path)],
-        ["FX mode solicitado", analysis.fx_mode_requested],
-        ["FX mode aplicado", analysis.fx_mode],
+        ["Informes IBKR", "; ".join(str(path) for path in report_paths)],
+        ["FX valores no EUR", "ECB/BCE"],
         ["History end date", analysis.history_end_date.isoformat() if analysis.history_end_date is not None else "REVISAR"],
     ]
 
@@ -2238,70 +2295,67 @@ def render_excel_report(
 
 
 def build_analysis(
-    transactions_path: Path,
-    account_path: Path,
+    report_paths: list[Path],
     year: int,
     apply_two_month_rule: bool = True,
-    fx_mode: str = "degiro",
     history_end_date: date | None = None,
 ) -> Analysis:
-    def build_analysis_for_explicit_mode(explicit_fx_mode: str) -> Analysis:
-        ecb = EcbRateProvider()
-        trades, ecb_rates_used, degiro_rates_used = parse_transactions(transactions_path, ecb, fx_mode=explicit_fx_mode)
-        trades = aggregate_trades(trades)
-        cash_movements = parse_account(account_path, ecb)
-        disposals, open_lots, open_lots_at_year_end, open_lots_at_history_end, warnings = run_fifo(
-            trades,
-            apply_two_month_rule=apply_two_month_rule,
-            history_end_date=history_end_date,
-            snapshot_year=year,
-        )
-        warnings.extend(warn_same_timestamp_mixed_sides(trades))
-        max_trade_date = max((trade.trade_dt.date() for trade in trades), default=None)
-        if history_end_date is not None and max_trade_date is not None and history_end_date < max_trade_date:
+    ecb = EcbRateProvider()
+    trades, cash_movements, instruments, ecb_rates_used, ibkr_rates_used = parse_ibkr_reports(report_paths, ecb)
+    trades = aggregate_trades(trades)
+    disposals, open_lots, open_lots_at_year_end, open_lots_at_history_end, warnings = run_fifo(
+        trades,
+        apply_two_month_rule=apply_two_month_rule,
+        history_end_date=history_end_date,
+        snapshot_year=year,
+    )
+    warnings.extend(warn_same_timestamp_mixed_sides(trades))
+    for instrument in instruments.values():
+        if instrument.instrument_type and instrument.instrument_type.upper() not in {"COMMON", "ADR"}:
             warnings.append(
-                f"--history-end-date {history_end_date.isoformat()} es anterior a la ultima operacion del CSV ({max_trade_date.isoformat()}). Revisa la cobertura del historico."
+                f"Instrumento no accion comun detectado en IBKR: {instrument.symbol} ({instrument.isin}) tipo {instrument.instrument_type}. Revisar tratamiento fiscal manualmente."
             )
-        if history_end_date is None:
-            warnings.append(
-                "No se ha indicado --history-end-date. Para ventas cercanas a final de ejercicio puede faltar cobertura suficiente para validar recompras posteriores."
-            )
-        return Analysis(
-            trades=trades,
-            cash_movements=cash_movements,
-            disposals=disposals,
-            open_lots=open_lots,
-            open_lots_at_year_end=open_lots_at_year_end,
-            open_lots_at_history_end=open_lots_at_history_end,
-            warnings=warnings,
-            ecb_rates_used=ecb_rates_used,
-            degiro_rates_used=degiro_rates_used,
-            fx_mode=explicit_fx_mode,
-            fx_mode_requested=fx_mode,
-            apply_two_month_rule=apply_two_month_rule,
-            corporate_action_alerts=analyze_corporate_actions(cash_movements, year),
-            history_end_date=history_end_date or max((trade.trade_dt.date() for trade in trades), default=None),
-            history_end_date_declared=history_end_date is not None,
+    max_trade_date = max((trade.trade_dt.date() for trade in trades), default=None)
+    if history_end_date is not None and max_trade_date is not None and history_end_date < max_trade_date:
+        warnings.append(
+            f"--history-end-date {history_end_date.isoformat()} es anterior a la ultima operacion del CSV ({max_trade_date.isoformat()}). Revisa la cobertura del historico."
         )
-
-    if fx_mode == "favorable":
-        degiro_analysis = build_analysis_for_explicit_mode("degiro")
-        ecb_analysis = build_analysis_for_explicit_mode("ecb")
-
-        degiro_total = sum((d.gain_loss_eur for d in filter_year_disposals(degiro_analysis.disposals, year)), Decimal("0"))
-        ecb_total = sum((d.gain_loss_eur for d in filter_year_disposals(ecb_analysis.disposals, year)), Decimal("0"))
-
-        if ecb_total < degiro_total:
-            return ecb_analysis
-        return degiro_analysis
-
-    return build_analysis_for_explicit_mode(fx_mode)
+    if history_end_date is None:
+        warnings.append(
+            "No se ha indicado --history-end-date. Para ventas cercanas a final de ejercicio puede faltar cobertura suficiente para validar recompras posteriores."
+        )
+    return Analysis(
+        trades=trades,
+        cash_movements=cash_movements,
+        instruments=instruments,
+        report_paths=report_paths,
+        disposals=disposals,
+        open_lots=open_lots,
+        open_lots_at_year_end=open_lots_at_year_end,
+        open_lots_at_history_end=open_lots_at_history_end,
+        warnings=warnings,
+        ecb_rates_used=ecb_rates_used,
+        ibkr_rates_used=ibkr_rates_used,
+        fx_mode="ecb",
+        fx_mode_requested="ecb",
+        apply_two_month_rule=apply_two_month_rule,
+        corporate_action_alerts=analyze_corporate_actions(cash_movements, year),
+        history_end_date=history_end_date or max((trade.trade_dt.date() for trade in trades), default=None),
+        history_end_date_declared=history_end_date is not None,
+    )
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Analyze DEGIRO Account + Transactions and produce a Markdown report for IRPF.")
-    parser.add_argument("--transactions", required=True, type=Path, help="Path to DEGIRO Transactions.csv")
-    parser.add_argument("--account", required=True, type=Path, help="Path to DEGIRO Account.csv")
+    parser = argparse.ArgumentParser(description="Analyze one or more Interactive Brokers annual activity CSV reports and produce IRPF support reports.")
+    parser.add_argument(
+        "--ibkr-report",
+        "--report",
+        dest="ibkr_reports",
+        required=True,
+        nargs="+",
+        type=Path,
+        help="Path(s) to Interactive Brokers annual activity CSV report(s). Pass all years needed for FIFO history.",
+    )
     parser.add_argument("--year", required=True, type=int, help="Tax year to report")
     parser.add_argument("--output", type=Path, help="Output Markdown file")
     parser.add_argument("--excel-output", type=Path, help="Optional output Excel .xlsx file")
@@ -2328,15 +2382,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Optional decimal rate to estimate the maximum usable foreign-tax credit, for example 0.19",
     )
     parser.add_argument(
-        "--fx-mode",
-        choices=("degiro", "ecb", "favorable"),
-        default="degiro",
-        help="FX source for non-EUR trades: use DEGIRO EUR values when present, force ECB, or compare full DEGIRO vs full ECB declarations and keep the globally most favorable one.",
-    )
-    parser.add_argument(
         "--history-end-date",
         type=date.fromisoformat,
-        help="Last date covered by the exported broker history, YYYY-MM-DD. Used to decide whether future repurchase windows are fully covered.",
+        help="Last date covered by the exported IBKR history, YYYY-MM-DD. Used to decide whether future repurchase windows are fully covered.",
     )
     return parser.parse_args(argv)
 
@@ -2344,18 +2392,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv or sys.argv[1:])
     analysis = build_analysis(
-        args.transactions,
-        args.account,
+        args.ibkr_reports,
         args.year,
-        fx_mode=args.fx_mode,
         history_end_date=args.history_end_date,
     )
     carryovers = load_carryover_input(args.carry_income_losses, args.carry_gains_losses, args.carryover_json)
     report = render_report(
         analysis,
         args.year,
-        args.transactions,
-        args.account,
+        args.ibkr_reports,
         carryovers,
         args.savings_tax_rate_hint,
     )
@@ -2372,8 +2417,7 @@ def main(argv: list[str] | None = None) -> int:
             excel_output,
             analysis,
             args.year,
-            args.transactions,
-            args.account,
+            args.ibkr_reports,
             carryovers,
             args.savings_tax_rate_hint,
         )
