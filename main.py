@@ -956,47 +956,50 @@ def analyze_interest(cash_movements: list[CashMovement], year: int) -> list[Cash
     ]
 
 
-def analyze_fees(cash_movements: list[CashMovement], year: int) -> list[CashMovement]:
-    result: list[CashMovement] = []
-    for movement in cash_movements:
-        if movement.booking_dt.year != year:
-            continue
-        desc = movement.description.lower()
-        if "comision de conectividad" in desc or "connectivity" in desc:
-            result.append(movement)
-    return result
 
+def analyze_broker_fees(cash_movements: list[CashMovement], trades: list[Trade], year: int) -> BrokerFeeSummary:
+    """
+    Clasifica los gastos del broker IBKR para el año fiscal indicado.
 
-def analyze_broker_fees(cash_movements: list[CashMovement], year: int, loaded_order_ids: set[str]) -> BrokerFeeSummary:
+    - trade_fee_movements: comisiones de operaciones de compra/venta (row[11] de Operaciones/Acciones
+      en el CSV), ya incorporadas a la base de coste FIFO en Trade.fee_eur. Se representan aquí como
+      CashMovement sintéticos únicamente para visibilidad en el informe; NO deben volver a restarse.
+    - non_deductible_broker_fees: tarifas de datos de mercado (sección Tarifas del CSV, p.ej.
+      "Global Snapshot PNP"), no deducibles en IRPF según posición DGT.
+    - deductible_admin_fees: vacío en IBKR (sin comisiones de custodia/administración deducibles
+      en cuentas de efectivo estándar).
+
+    Nota: las filas 'Informe de efectivo,Data,Comisiones,<divisa>,...' del CSV son totales por
+    divisa de las mismas comisiones de Trade.fee_eur (no se parsean y no generan CashMovement).
+    """
     deductible_admin_fees: list[CashMovement] = []
     non_deductible_broker_fees: list[CashMovement] = []
     trade_fee_movements: list[CashMovement] = []
 
+    # Comisiones de operaciones: embebidas en Trade.fee_eur, ya en base de coste FIFO.
+    # Se sintetizan como CashMovement para mostrarlas en el informe.
+    for trade in trades:
+        if trade.trade_dt.year != year or trade.fee_eur == 0:
+            continue
+        trade_fee_movements.append(
+            CashMovement(
+                booking_dt=trade.trade_dt,
+                value_date=trade.trade_dt.date(),
+                product=trade.product,
+                isin=trade.isin,
+                description=f"Comisión {trade.side} {trade.product} ({trade.currency})",
+                currency="EUR",
+                amount=-trade.fee_eur,
+                amount_eur=-trade.fee_eur,
+                order_id=trade.order_id,
+            )
+        )
+
+    # Tarifas de datos de mercado: sección Tarifas del CSV, no deducibles en IRPF.
     for movement in cash_movements:
         if movement.booking_dt.year != year:
             continue
-
-        desc = movement.description.lower()
-        if "costes de transacción" in desc or "costes de transaccion" in desc:
-            if movement.order_id and movement.order_id in loaded_order_ids:
-                trade_fee_movements.append(movement)
-            else:
-                non_deductible_broker_fees.append(movement)
-            continue
-
-        if "connectivity" in desc or "conectividad" in desc:
-            non_deductible_broker_fees.append(movement)
-            continue
-
-        if any(token in desc for token in ("custody", "administr", "mantenimiento", "platform fee", "service fee")):
-            deductible_admin_fees.append(movement)
-            continue
-
-        if "interest" in desc and movement.amount_eur < 0:
-            non_deductible_broker_fees.append(movement)
-            continue
-
-        if "fee" in desc or "comision" in desc or "comisión" in desc:
+        if ":Tarifas:" in movement.order_id:
             non_deductible_broker_fees.append(movement)
 
     return BrokerFeeSummary(
@@ -1427,7 +1430,7 @@ def render_report(
     grouped = group_f2_lines(f2_lines)
     dividends, withholdings = analyze_dividends(analysis.cash_movements, year)
     interests = analyze_interest(analysis.cash_movements, year)
-    broker_fees = analyze_broker_fees(analysis.cash_movements, year, {trade.order_id for trade in analysis.trades if trade.order_id})
+    broker_fees = analyze_broker_fees(analysis.cash_movements, analysis.trades, year)
     savings = calculate_savings_compensation(
         year_disposals,
         dividends,
@@ -1718,6 +1721,27 @@ def render_report(
     lines.append("")
     lines.append("La doble imposición se detecta de forma heurística por descripción del movimiento. Revisa manualmente dividendos y retenciones antes de trasladarlos a Renta WEB.")
     lines.append("")
+    lines.append("### Gastos del broker")
+    lines.append("")
+    fee_rows: list[list[str]] = [
+        [
+            "Comisiones de operaciones (ya en base de coste FIFO)",
+            f"{q(trade_fee_movements_total)} EUR",
+            "NO meter en Renta WEB: ya incorporadas al valor de adquisición/transmisión en el cálculo FIFO",
+        ],
+        [
+            "Tarifas de datos de mercado (no deducibles IRPF)",
+            f"{q(non_deductible_fees_total)} EUR",
+            "NO deducibles en IRPF según posición DGT; no restadas del resultado",
+        ],
+        [
+            "Gastos de administración deducibles",
+            f"{q(deductible_fees_total)} EUR",
+            "Deducibles de capital mobiliario; incluidos en sección 5",
+        ],
+    ]
+    add_table(lines, ["Concepto", "Importe EUR", "Acción"], fee_rows)
+    lines.append("")
     lines.append("## 7. Insights fiscales importantes")
     lines.append("")
     insights: list[str] = []
@@ -1838,6 +1862,10 @@ def render_report(
     lines.append(f"- Dividendos/intereses brutos: {q(dividends_total + interest_total)} EUR")
     lines.append(f"- Gastos deducibles: {q(deductible_fees_total)} EUR")
     lines.append(f"- Retención extranjera asociada: {q(foreign_income.foreign_tax_paid_eur)} EUR")
+    lines.append("")
+    lines.append("Comisiones de operaciones (informativo):")
+    lines.append(f"- Total comisiones IBKR ya en base de coste FIFO: {q(trade_fee_movements_total)} EUR")
+    lines.append(f"- Tarifas de datos de mercado (no deducibles): {q(non_deductible_fees_total)} EUR")
     if foreign_income.unmatched_foreign_tax_paid_eur > 0:
         lines.append(f"- Retención extranjera no emparejada: {q(foreign_income.unmatched_foreign_tax_paid_eur)} EUR")
     lines.append("")
@@ -1975,7 +2003,7 @@ def render_excel_report(
     grouped = group_f2_lines(f2_lines)
     dividends, withholdings = analyze_dividends(analysis.cash_movements, year)
     interests = analyze_interest(analysis.cash_movements, year)
-    broker_fees = analyze_broker_fees(analysis.cash_movements, year, {trade.order_id for trade in analysis.trades if trade.order_id})
+    broker_fees = analyze_broker_fees(analysis.cash_movements, analysis.trades, year)
     savings = calculate_savings_compensation(
         year_disposals,
         dividends,
