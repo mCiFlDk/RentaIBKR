@@ -1,4 +1,4 @@
-# Informe IRPF 2025 - DEGIRO
+# Informe IRPF 2025 - Interactive Brokers
 
 ## 1. Resumen ejecutivo
 
@@ -13,7 +13,7 @@
 | Pérdida diferida pendiente al final del histórico cargado | 0.00 EUR | Si es 0, no queda pérdida pendiente según el histórico |
 | Dividendos brutos | 12.50 EUR | Capital mobiliario, si aplica |
 | Retención extranjera asociada | 1.90 EUR | Doble imposición, si aplica |
-| Intereses | 0.35 EUR | Capital mobiliario, si aplica |
+| Intereses | 0.00 EUR | Capital mobiliario, si aplica |
 
 - Pérdidas compensables: NO. Resultado F2 integrable actual: 214.00 EUR.
 - Pérdidas bloqueadas pendientes: cierre 0.00 EUR; final histórico 0.00 EUR.
@@ -58,11 +58,11 @@ No queda pérdida diferida pendiente al final del histórico cargado.
 | Concepto | Importe |
 | --- | ---: |
 | Saldo ganancias/pérdidas patrimoniales F2 antes de compensaciones | 214.00 EUR |
-| Saldo capital mobiliario antes de compensaciones | 10.85 EUR |
+| Saldo capital mobiliario antes de compensaciones | 10.50 EUR |
 | Compensación aplicada entre bloques del ejercicio | 0.00 EUR |
 | Arrastres de años anteriores usados | 0.00 EUR |
 | Saldo final F2 estimado por el script | 214.00 EUR |
-| Saldo final capital mobiliario estimado | 10.85 EUR |
+| Saldo final capital mobiliario estimado | 10.50 EUR |
 
 Usar como control, no como sustituto del cálculo automático de Renta WEB.
 
@@ -75,7 +75,7 @@ Usar como control, no como sustituto del cálculo automático de Renta WEB.
 | Concepto | Importe EUR | Dónde va |
 | --- | ---: | --- |
 | Dividendos brutos | 12.50 EUR | Capital mobiliario |
-| Intereses | 0.35 EUR | Capital mobiliario |
+| Intereses | 0.00 EUR | Capital mobiliario |
 | Retención extranjera asociada | 1.90 EUR | Deducción doble imposición internacional; estimación heurística |
 | Renta extranjera asociada | 12.50 EUR | Deducción doble imposición internacional; estimación heurística |
 
@@ -101,7 +101,7 @@ F2 acciones:
 - Pérdida diferida pendiente final: 0.00 EUR
 
 Capital mobiliario:
-- Dividendos/intereses brutos: 12.85 EUR
+- Dividendos/intereses brutos: 12.50 EUR
 - Gastos deducibles: 2.00 EUR
 - Retención extranjera asociada: 1.90 EUR
 

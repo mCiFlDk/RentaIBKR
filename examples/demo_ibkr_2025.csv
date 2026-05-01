@@ -1,0 +1,26 @@
+Statement,Header,Nombre del campo,Valor del campo
+Statement,Data,BrokerName,Interactive Brokers Ireland Limited
+Statement,Data,Title,Informe de actividad
+Statement,Data,Period,"Enero 1, 2025 - Diciembre 31, 2025"
+Información sobre la cuenta,Header,Nombre del campo,Valor del campo
+Información sobre la cuenta,Data,Cuenta,DEMO
+Información sobre la cuenta,Data,Divisa base,EUR
+Operaciones,Header,DataDiscriminator,Categoría de activo,Divisa,Símbolo,Fecha/Hora,Cantidad,Precio trans.,Precio de cier.,Productos,Tarifa/com.,Básico,PyG realizadas,MTM P/G,Código
+Operaciones,Data,Order,Acciones,EUR,BIO,"2025-01-10, 09:30:00",100,10.00,10.00,-1000.00,-1.00,1001.00,0,0,O
+Operaciones,Data,Order,Acciones,EUR,BIO,"2025-02-20, 15:45:00",-100,8.00,8.00,800.00,-1.00,-1001.00,-202.00,0,C
+Operaciones,Data,Order,Acciones,EUR,BIO,"2025-03-10, 10:00:00",60,7.00,7.00,-420.00,-1.00,421.00,0,0,O
+Operaciones,Data,Order,Acciones,EUR,BIO,"2025-06-20, 16:00:00",-60,12.00,12.00,720.00,-1.00,-421.00,298.00,0,C
+Operaciones,Data,Order,Acciones,EUR,ENG,"2025-04-01, 11:00:00",10,80.00,80.00,-800.00,-1.00,801.00,0,0,O
+Operaciones,Data,Order,Acciones,EUR,ENG,"2025-11-10, 14:00:00",-10,92.00,92.00,920.00,-1.00,-801.00,118.00,0,C
+Operaciones,Total,,Acciones,EUR,,,,,,220.00,-6.00,0.00,214.00,0,
+Dividendos,Header,Divisa,Fecha,Descripción,Cantidad
+Dividendos,Data,EUR,2025-07-15,ENG(GB1234567890) Dividendo en efectivo EUR 1.25 por acción (Dividendo ordinario),12.50
+Dividendos,Data,Total,,,12.50
+Retención de impuestos,Header,Divisa,Fecha,Descripción,Cantidad,Código
+Retención de impuestos,Data,EUR,2025-07-15,ENG(GB1234567890) Dividendo en efectivo EUR 1.25 por acción - Impuestos,-1.90,
+Retención de impuestos,Data,Total,,,-1.90,
+Tarifas,Header,Subtitle,Divisa,Fecha,Descripción,Cantidad
+Tarifas,Data,Otras comisiones,EUR,2025-12-31,Platform fee,-2.00
+Información de instrumento financiero,Header,Categoría de activo,Símbolo,Descripción,Conid,Id. de seguridad,Underlying,Merc. de cotización,Multiplicador,Tipo,Código
+Información de instrumento financiero,Data,Acciones,BIO,DEMO BIOTECH INC,1,US1234567890,BIO,NYSE,1,COMMON,
+Información de instrumento financiero,Data,Acciones,ENG,DEMO ENERGY PLC,2,GB1234567890,ENG,LSE,1,COMMON,

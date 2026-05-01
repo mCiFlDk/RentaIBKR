@@ -1,5 +1,0 @@
-BookingDate,BookingTime,ValueDate,Product,ISIN,Description,Type,Currency,Amount,Balance,Extra,OrderID
-15-07-2025,09:00,15-07-2025,DEMO ENERGY PLC,GB1234567890,Cash dividend,Income,EUR,12.50,,,DIV-001
-15-07-2025,09:00,15-07-2025,DEMO ENERGY PLC,GB1234567890,Dividend withholding tax,Tax,EUR,-1.90,,,DIV-001-TAX
-31-12-2025,12:00,31-12-2025,Cash,,Cash interest,Interest,EUR,0.35,,,INT-001
-31-12-2025,12:05,31-12-2025,Cuenta,,Service fee,Fee,EUR,-2.00,,,FEE-001
