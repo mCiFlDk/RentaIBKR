@@ -481,21 +481,21 @@ def parse_ibkr_cash_movement_row(path: Path, row: list[str], instruments: dict[s
 
     section = row[0]
     if section == "Dividendos":
-        if len(row) < 6 or is_total_currency(row[2]):
+        if len(row) < 6 or is_total_currency(row[2]) or not row[3].strip() or not row[4].strip():
             return None
         currency = row[2].strip() or "EUR"
         value_date = parse_iso_date(row[3])
         description = row[4].strip()
         amount = d(row[5])
     elif section == "Retención de impuestos":
-        if len(row) < 6 or is_total_currency(row[2]):
+        if len(row) < 6 or is_total_currency(row[2]) or not row[3].strip() or not row[4].strip():
             return None
         currency = row[2].strip() or "EUR"
         value_date = parse_iso_date(row[3])
         description = row[4].strip()
         amount = d(row[5])
     elif section == "Tarifas":
-        if len(row) < 7 or is_total_currency(row[2]) or is_total_currency(row[3]) or not row[4].strip():
+        if len(row) < 7 or is_total_currency(row[2]) or is_total_currency(row[3]) or not row[4].strip() or not row[5].strip():
             return None
         currency = row[3].strip() or "EUR"
         value_date = parse_iso_date(row[4])
